@@ -8,23 +8,17 @@ import java.util.List;
 public class Veterinary {
 
     @Id
-    @Column(name = "vet_id", length = 20)
+    @Column(name = "vet_id")
     private String vetId;   // Kendi ID'si, User ile ortak değil
 
-    @Column(nullable = false, length = 64)
+    @Column(nullable = false)
     private String firstName;
 
-    @Column(nullable = false, length = 64)
+    @Column(nullable = false)
     private String lastName;
 
-    @Column(length = 32)
+    @Column(nullable = false)
     private String phoneNumber;
-
-    @Column(length = 64)
-    private String city;
-
-    @Column(length = 64)
-    private String district;
 
     @Column(length = 256)
     private String address;
@@ -63,4 +57,92 @@ public class Veterinary {
 
     // GETTERS & SETTERS
 
+
+    public String getVetId() {
+        return vetId;
+    }
+
+    public void setVetId(String vetId) {
+        this.vetId = vetId;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getCertificate() {
+        return certificate;
+    }
+
+    public void setCertificate(String certificate) {
+        this.certificate = certificate;
+    }
+
+    public Clinic getClinic() {
+        return clinic;
+    }
+
+    public void setClinic(Clinic clinic) {
+        this.clinic = clinic;
+    }
+
+    public List<Appointment> getAppointments() {
+        return appointments;
+    }
+
+    public void setAppointments(List<Appointment> appointments) {
+        this.appointments = appointments;
+    }
+
+    public List<MedicalRecord> getMedicalRecords() {
+        return medicalRecords;
+    }
+
+    public void setMedicalRecords(List<MedicalRecord> medicalRecords) {
+        this.medicalRecords = medicalRecords;
+    }
 }

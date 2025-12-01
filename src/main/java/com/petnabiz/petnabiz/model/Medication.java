@@ -15,7 +15,11 @@ public class Medication {
 
 
     private String instructions;
+
+    @Column(nullable = false)
     private LocalDate start;
+
+    @Column(nullable = false)
     private LocalDate end;
 
 //    @ManyToOne
@@ -23,10 +27,51 @@ public class Medication {
 //    private MedicalRecord medicalRecord;
 
     @ManyToOne
-    @JoinColumn(name = "medicine_id")
+    @JoinColumn(name = "medicine_id",nullable = false)
     private Medicine medicine;
 
     public Medication() {}
 
     // GETTERS & SETTERS
+
+
+    public String getMedicationId() {
+        return medicationId;
+    }
+
+    public void setMedicationId(String medicationId) {
+        this.medicationId = medicationId;
+    }
+
+    public String getInstructions() {
+        return instructions;
+    }
+
+    public void setInstructions(String instructions) {
+        this.instructions = instructions;
+    }
+
+    public LocalDate getStart() {
+        return start;
+    }
+
+    public void setStart(LocalDate start) {
+        this.start = start;
+    }
+
+    public LocalDate getEnd() {
+        return end;
+    }
+
+    public void setEnd(LocalDate end) {
+        this.end = end;
+    }
+
+    public Medicine getMedicine() {
+        return medicine;
+    }
+
+    public void setMedicine(Medicine medicine) {
+        this.medicine = medicine;
+    }
 }
