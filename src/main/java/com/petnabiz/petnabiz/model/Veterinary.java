@@ -42,14 +42,12 @@ public class Veterinary {
 
     public Veterinary(String vetId, String firstName, String lastName,
                       String phoneNumber,
-                      String city, String district, String address,
+                      String address,
                       String certificate, Clinic clinic) {
         this.vetId = vetId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.phoneNumber = phoneNumber;
-        this.city = city;
-        this.district = district;
         this.address = address;
         this.certificate = certificate;
         this.clinic = clinic;
@@ -90,21 +88,6 @@ public class Veterinary {
         this.phoneNumber = phoneNumber;
     }
 
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
-    public String getDistrict() {
-        return district;
-    }
-
-    public void setDistrict(String district) {
-        this.district = district;
-    }
 
     public String getAddress() {
         return address;
