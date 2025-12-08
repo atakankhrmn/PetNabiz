@@ -14,6 +14,8 @@ public interface AdminRepository extends JpaRepository<Admin, String> {
     // 1) ID bazlı erişim (JpaRepository'de de var ama isim net olsun diye)
     Optional<Admin> findByAdminId(String adminId);
 
+    boolean existsByAdminId(String userId);
+
     // 2) User ilişkisi üzerinden erişim
     Optional<Admin> findByUser(User user);
 

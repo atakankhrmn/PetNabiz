@@ -111,4 +111,12 @@ public class Clinic {
     public void setVeterinaries(List<Veterinary> veterinaries) {
         this.veterinaries = veterinaries;
     }
+
+    public String getEmail() {
+        return  user.getEmail();
+    }
+
+    public void setEmail(String email) {
+        this.user.setEmail(email);
+    }
 }

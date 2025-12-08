@@ -24,6 +24,9 @@ public interface ClinicRepository extends JpaRepository<Clinic, String> {
     // Elinde direkt User nesnesi varsa:
     Optional<Clinic> findByUser(User user);
 
+    Optional<Clinic> findByEmail(String email);
+    boolean existsByEmail(String email);
+
     // Elinde sadece userId varsa:
     Optional<Clinic> findByUser_UserId(String userId);
 
@@ -42,4 +45,6 @@ public interface ClinicRepository extends JpaRepository<Clinic, String> {
 
     // Klinik adında geçen kelimeye göre arama (örn: "vet", "animal" vs.)
     List<Clinic> findByNameContainingIgnoreCase(String namePart);
+
+
 }
