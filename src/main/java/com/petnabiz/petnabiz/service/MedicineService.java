@@ -27,4 +27,5 @@ public interface MedicineService {
 
     // Medicine sil
     void deleteMedicine(String medicineId);
+
 }

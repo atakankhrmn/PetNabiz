@@ -23,4 +23,5 @@ public interface MedicineRepository extends JpaRepository<Medicine, String> {
 
     // 4) Type + isim birlikte filtre (örn: sadece "tablet" olan ve adı "para" içerenler)
     List<Medicine> findByTypeIgnoreCaseAndNameContainingIgnoreCase(String type, String namePart);
+
 }

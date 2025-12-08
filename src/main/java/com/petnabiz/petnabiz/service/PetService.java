@@ -34,4 +34,8 @@ public interface PetService {
 
     // Pet sil
     void deletePet(String petId);
+
+    /*
+    List<Pet> getPetsByClinicId(String clinicId);
+     */
 }

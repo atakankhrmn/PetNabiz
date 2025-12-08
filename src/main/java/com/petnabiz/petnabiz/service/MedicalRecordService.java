@@ -9,28 +9,28 @@ import java.util.Optional;
 public interface MedicalRecordService {
 
     // Tüm kayıtlar
-    List<MedicalRecord> getAllRecords();
+    List<MedicalRecord> getAllMedicalRecords();
 
     // ID ile kayıt
-    Optional<MedicalRecord> getRecordById(String recordId);
+    Optional<MedicalRecord> getMedicalRecordById(String recordId);
 
     // Pet bazlı kayıtlar
-    List<MedicalRecord> getRecordsByPetId(String petId);
+    List<MedicalRecord> getMedicalRecordsByPetId(String petId);
 
     // Vet bazlı kayıtlar
-    List<MedicalRecord> getRecordsByVeterinaryId(String vetId);
+    List<MedicalRecord> getMedicalRecordsByVeterinaryId(String vetId);
 
     // Tarih bazlı
-    List<MedicalRecord> getRecordsByDate(LocalDate date);
+    List<MedicalRecord> getMedicalRecordsByDate(LocalDate date);
 
-    List<MedicalRecord> getRecordsByDateRange(LocalDate startDate, LocalDate endDate);
+    List<MedicalRecord> getMedicalRecordsByDateRange(LocalDate startDate, LocalDate endDate);
 
     // Yeni kayıt oluştur
-    MedicalRecord createRecord(MedicalRecord record);
+    MedicalRecord createMedicalRecord(MedicalRecord record);
 
     // Kayıt güncelle
-    MedicalRecord updateRecord(String recordId, MedicalRecord updatedRecord);
+    MedicalRecord updateMedicalRecord(String recordId, MedicalRecord updatedRecord);
 
     // Kayıt sil
-    void deleteRecord(String recordId);
+    void deleteMedicalRecord(String recordId);
 }

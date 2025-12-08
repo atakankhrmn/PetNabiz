@@ -2,8 +2,10 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.model.Medication;
 import com.petnabiz.petnabiz.model.Medicine;
+import com.petnabiz.petnabiz.repository.MedicalRecordRepository;
 import com.petnabiz.petnabiz.repository.MedicationRepository;
 import com.petnabiz.petnabiz.repository.MedicineRepository;
+import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.service.MedicationService;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +18,16 @@ public class MedicationServiceImpl implements MedicationService {
 
     private final MedicationRepository medicationRepository;
     private final MedicineRepository medicineRepository;
+    private final MedicalRecordRepository medicalRecordRepository;
+    private final PetRepository petRepository;
+
 
     public MedicationServiceImpl(MedicationRepository medicationRepository,
-                                 MedicineRepository medicineRepository) {
+                                 MedicineRepository medicineRepository, MedicalRecordRepository medicalRecordRepository, PetRepository petRepository) {
         this.medicationRepository = medicationRepository;
         this.medicineRepository = medicineRepository;
+        this.medicalRecordRepository = medicalRecordRepository;
+        this.petRepository = petRepository;
     }
 
     @Override
@@ -136,4 +143,28 @@ public class MedicationServiceImpl implements MedicationService {
 
         medicationRepository.deleteById(medicationId);
     }
+
+    @Override
+    public List<Medication> getMedicationsByMedicalRecordId(String recordId) {
+
+        // 1) MedicalRecord gerçekten var mı kontrol et
+        medicalRecordRepository.findByRecordId(recordId)
+                .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + recordId));
+
+        // 2) MedicalRecord'a bağlı tüm medication'ları döndür
+        return medicationRepository.findByMedicalRecord_RecordId(recordId);
+    }
+
+    @Override
+    public List<Medication> getMedicationsByPetId(String petId) {
+
+        // 1) Pet gerçekten var mı kontrol et
+        petRepository.findByPetId(petId)
+                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
+
+        // 2) Bu pet'e ait tüm medication'ları döndür
+        return medicationRepository.findByPet_PetId(petId);
+    }
+
+
 }

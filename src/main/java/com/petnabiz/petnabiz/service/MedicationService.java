@@ -37,4 +37,8 @@ public interface MedicationService {
 
     // Medication sil
     void deleteMedication(String medicationId);
+
+    List<Medication> getMedicationsByMedicalRecordId(String recordId);
+
+    List<Medication> getMedicationsByPetId(String petId);
 }

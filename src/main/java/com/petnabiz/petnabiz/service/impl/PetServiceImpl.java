@@ -2,6 +2,7 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.model.PetOwner;
+import com.petnabiz.petnabiz.repository.ClinicRepository;
 import com.petnabiz.petnabiz.repository.PetOwnerRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.service.PetService;
@@ -15,12 +16,15 @@ public class PetServiceImpl implements PetService {
 
     private final PetRepository petRepository;
     private final PetOwnerRepository petOwnerRepository;
+    private final ClinicRepository clinicRepository;
+
 
     // Constructor injection
     public PetServiceImpl(PetRepository petRepository,
-                          PetOwnerRepository petOwnerRepository) {
+                          PetOwnerRepository petOwnerRepository, ClinicRepository clinicRepository) {
         this.petRepository = petRepository;
         this.petOwnerRepository = petOwnerRepository;
+        this.clinicRepository = clinicRepository;
     }
 
     @Override
@@ -114,4 +118,18 @@ public class PetServiceImpl implements PetService {
         //Cardinality'den dolayı iki tablodan da siliyor -Atakan
         petRepository.deleteById(petId);
     }
+
+    /*
+    @Override
+    public List<Pet> getPetsByClinicId(String clinicId) {
+
+        // 1) Klinik gerçekten var mı kontrol et
+        clinicRepository.findByClinicId(clinicId)
+                .orElseThrow(() -> new IllegalArgumentException("Klinik bulunamadı: " + clinicId));
+
+        // 2) Bu kliniğe bağlı tüm pet'leri getir
+        return petRepository.findByClinic_ClinicId(clinicId);
+    }
+     */
+
 }

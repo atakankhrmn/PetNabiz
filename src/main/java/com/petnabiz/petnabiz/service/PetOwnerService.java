@@ -8,25 +8,25 @@ import java.util.Optional;
 public interface PetOwnerService {
 
     // Tüm owner'lar
-    List<PetOwner> getAllOwners();
+    List<PetOwner> getAllPetOwners();
 
     // ID ile owner bul
-    Optional<PetOwner> getOwnerById(String ownerId);
+    Optional<PetOwner> getPetOwnerById(String ownerId);
 
     // User email ile owner bul (login sonrası vs.)
-    Optional<PetOwner> getOwnerByEmail(String email);
+    Optional<PetOwner> getPetOwnerByEmail(String email);
 
     // İsim bazlı aramalar
-    List<PetOwner> searchOwnersByFirstName(String firstNamePart);
+    List<PetOwner> searchPetOwnersByFirstName(String firstNamePart);
 
-    List<PetOwner> searchOwnersByLastName(String lastNamePart);
+    List<PetOwner> searchPetOwnersByLastName(String lastNamePart);
 
     // Yeni owner oluştur
-    PetOwner createOwner(PetOwner petOwner);
+    PetOwner createPetOwner(PetOwner petOwner);
 
     // Var olan owner'ı güncelle
-    PetOwner updateOwner(String ownerId, PetOwner updatedOwner);
+    PetOwner updatePetOwner(String ownerId, PetOwner updatedOwner);
 
     // Owner sil
-    void deleteOwner(String ownerId);
+    void deletePetOwner(String ownerId);
 }

@@ -50,4 +50,8 @@ public interface MedicationRepository extends JpaRepository<Medication, String> 
 
     // 4) Talimat (instructions) bazlı arama
     List<Medication> findByInstructionsContainingIgnoreCase(String text);
+
+    List<Medication> findByMedicalRecord_RecordId(String recordId);
+
+    List<Medication> findByPet_PetId(String petId);
 }

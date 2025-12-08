@@ -23,33 +23,33 @@ public class PetOwnerServiceImpl implements PetOwnerService {
     }
 
     @Override
-    public List<PetOwner> getAllOwners() {
+    public List<PetOwner> getAllPetOwners() {
         return petOwnerRepository.findAll();
     }
 
     @Override
-    public Optional<PetOwner> getOwnerById(String ownerId) {
+    public Optional<PetOwner> getPetOwnerById(String ownerId) {
         return petOwnerRepository.findByOwnerId(ownerId);
         // veya: return petOwnerRepository.findById(ownerId);
     }
 
     @Override
-    public Optional<PetOwner> getOwnerByEmail(String email) {
+    public Optional<PetOwner> getPetOwnerByEmail(String email) {
         return petOwnerRepository.findByUser_Email(email);
     }
 
     @Override
-    public List<PetOwner> searchOwnersByFirstName(String firstNamePart) {
+    public List<PetOwner> searchPetOwnersByFirstName(String firstNamePart) {
         return petOwnerRepository.findByFirstNameContainingIgnoreCase(firstNamePart);
     }
 
     @Override
-    public List<PetOwner> searchOwnersByLastName(String lastNamePart) {
+    public List<PetOwner> searchPetOwnersByLastName(String lastNamePart) {
         return petOwnerRepository.findByLastNameContainingIgnoreCase(lastNamePart);
     }
 
     @Override
-    public PetOwner createOwner(PetOwner petOwner) {
+    public PetOwner createPetOwner(PetOwner petOwner) {
         /*
          * Tasarımın gereği:
          * PetOwner.ownerId = User.userId (MapsId)
@@ -86,7 +86,7 @@ public class PetOwnerServiceImpl implements PetOwnerService {
     }
 
     @Override
-    public PetOwner updateOwner(String ownerId, PetOwner updatedOwner) {
+    public PetOwner updatePetOwner(String ownerId, PetOwner updatedOwner) {
         PetOwner existingOwner = petOwnerRepository.findByOwnerId(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("PetOwner bulunamadı: " + ownerId));
 
@@ -100,7 +100,7 @@ public class PetOwnerServiceImpl implements PetOwnerService {
     }
 
     @Override
-    public void deleteOwner(String ownerId) {
+    public void deletePetOwner(String ownerId) {
         boolean exists = petOwnerRepository.existsByOwnerId(ownerId);
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen PetOwner bulunamadı: " + ownerId);

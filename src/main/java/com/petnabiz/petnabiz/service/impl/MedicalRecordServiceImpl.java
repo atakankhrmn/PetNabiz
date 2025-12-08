@@ -29,38 +29,38 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
-    public List<MedicalRecord> getAllRecords() {
+    public List<MedicalRecord> getAllMedicalRecords() {
         return medicalRecordRepository.findAll();
     }
 
     @Override
-    public Optional<MedicalRecord> getRecordById(String recordId) {
+    public Optional<MedicalRecord> getMedicalRecordById(String recordId) {
         return medicalRecordRepository.findByRecordId(recordId);
         // veya: return medicalRecordRepository.findById(recordId);
     }
 
     @Override
-    public List<MedicalRecord> getRecordsByPetId(String petId) {
+    public List<MedicalRecord> getMedicalRecordsByPetId(String petId) {
         return medicalRecordRepository.findByPet_PetId(petId);
     }
 
     @Override
-    public List<MedicalRecord> getRecordsByVeterinaryId(String vetId) {
+    public List<MedicalRecord> getMedicalRecordsByVeterinaryId(String vetId) {
         return medicalRecordRepository.findByVeterinary_VetId(vetId);
     }
 
     @Override
-    public List<MedicalRecord> getRecordsByDate(LocalDate date) {
+    public List<MedicalRecord> getMedicalRecordsByDate(LocalDate date) {
         return medicalRecordRepository.findByDate(date);
     }
 
     @Override
-    public List<MedicalRecord> getRecordsByDateRange(LocalDate startDate, LocalDate endDate) {
+    public List<MedicalRecord> getMedicalRecordsByDateRange(LocalDate startDate, LocalDate endDate) {
         return medicalRecordRepository.findByDateBetween(startDate, endDate);
     }
 
     @Override
-    public MedicalRecord createRecord(MedicalRecord record) {
+    public MedicalRecord createMedicalRecord(MedicalRecord record) {
         /*
          * Beklenen:
          *  - record.getPet().getPetId() dolu
@@ -95,7 +95,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
-    public MedicalRecord updateRecord(String recordId, MedicalRecord updatedRecord) {
+    public MedicalRecord updateMedicalRecord(String recordId, MedicalRecord updatedRecord) {
         MedicalRecord existing = medicalRecordRepository.findByRecordId(recordId)
                 .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + recordId));
 
@@ -131,7 +131,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
-    public void deleteRecord(String recordId) {
+    public void deleteMedicalRecord(String recordId) {
         boolean exists = medicalRecordRepository.existsById(recordId);
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen MedicalRecord bulunamadı: " + recordId);
