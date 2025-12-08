@@ -52,6 +52,7 @@ public interface MedicationRepository extends JpaRepository<Medication, String> 
     List<Medication> findByInstructionsContainingIgnoreCase(String text);
 
     List<Medication> findByMedicalRecord_RecordId(String recordId);
+    
+    List<Medication> findByMedicalRecord_Pet_PetId(String petId);
 
-    List<Medication> findByPet_PetId(String petId);
 }

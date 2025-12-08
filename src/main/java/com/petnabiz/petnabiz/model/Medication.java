@@ -22,9 +22,9 @@ public class Medication {
     @Column(nullable = false)
     private LocalDate end;
 
-//    @ManyToOne
-//    @JoinColumn(name = "record_id")
-//    private MedicalRecord medicalRecord;
+    @ManyToOne
+    @JoinColumn(name = "record_id")
+    private MedicalRecord medicalRecord;
 
     @ManyToOne
     @JoinColumn(name = "medicine_id",nullable = false)

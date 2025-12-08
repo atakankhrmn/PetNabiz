@@ -37,8 +37,6 @@ public class Pet {
     @OneToMany(mappedBy = "pet")
     private List<MedicalRecord> medicalRecords;
 
-    @OneToMany(mappedBy = "pet")
-    private List<Medication> medications;
 
     public Pet() {}
 
@@ -131,13 +129,5 @@ public class Pet {
 
     public void setMedicalRecords(List<MedicalRecord> medicalRecords) {
         this.medicalRecords = medicalRecords;
-    }
-
-    public List<Medication> getMedications() {
-        return medications;
-    }
-
-    public void setMedications(List<Medication> medications) {
-        this.medications = medications;
     }
 }

@@ -155,16 +155,13 @@ public class MedicationServiceImpl implements MedicationService {
         return medicationRepository.findByMedicalRecord_RecordId(recordId);
     }
 
+    // MedicationServiceImpl
     @Override
     public List<Medication> getMedicationsByPetId(String petId) {
-
-        // 1) Pet gerçekten var mı kontrol et
         petRepository.findByPetId(petId)
                 .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
 
-        // 2) Bu pet'e ait tüm medication'ları döndür
-        return medicationRepository.findByPet_PetId(petId);
+        return medicationRepository.findByMedicalRecord_Pet_PetId(petId);
     }
-
 
 }
