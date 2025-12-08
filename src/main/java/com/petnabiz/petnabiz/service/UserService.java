@@ -1,76 +1,45 @@
 package com.petnabiz.petnabiz.service;
 
 import com.petnabiz.petnabiz.model.User;
-import com.petnabiz.petnabiz.repository.UserRepository;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
+import java.util.Optional;
 
-@Service
-public class UserService {
+public interface UserService {
 
-    private final UserRepository userRepository;
+    // Tüm kullanıcılar
+    List<User> getAllUsers();
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    // ID ile bul
+    Optional<User> getUserById(String userId);
 
-    private String generateUserId() {
-        return "USR-" + UUID.randomUUID().toString().substring(0, 6);
-    }
+    // Email ile bul
+    Optional<User> getUserByEmail(String email);
 
-    public User createUser(User user) {
+    // Role göre kullanıcılar (ADMIN, OWNER, VET vs.)
+    List<User> getUsersByRole(String role);
 
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already in use!");
-        }
+    // Aktif kullanıcılar
+    List<User> getActiveUsers();
 
-        if (user.getUserId() == null || user.getUserId().isEmpty()) {
-            user.setUserId(generateUserId());
-        }
+    // Pasif kullanıcılar
+    List<User> getInactiveUsers();
 
-        user.setActive(true);
-        return userRepository.save(user);
-    }
+    // Yeni kullanıcı oluştur
+    User createUser(User user);
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
-    }
+    // Kullanıcı güncelle
+    User updateUser(String userId, User updatedUser);
 
-    public User getById(String id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
+    // Şifre güncelle
+    User updatePassword(String userId, String newPassword);
 
-    public User updateUser(String id, User data) {
-        User existing = getById(id);
+    // Aktiflik değiştir
+    User setActiveStatus(String userId, boolean active);
 
-        existing.setEmail(data.getEmail());
-        existing.setPassword(data.getPassword());
-        existing.setRole(data.getRole());
-        existing.setActive(data.isActive());
+    // Kullanıcı sil
+    void deleteUser(String userId);
 
-        return userRepository.save(existing);
-    }
-
-    public void softDelete(String id) {
-        User u = getById(id);
-        u.setActive(false);
-        userRepository.save(u);
-    }
-
-    // ✔ LOGIN (Artık UserController üzerinden çağırılacak)
-    public User login(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Invalid email"));
-
-        if (!user.isActive())
-            throw new RuntimeException("Account is not active");
-
-        if (!user.getPassword().equals(password))
-            throw new RuntimeException("Invalid password");
-
-        return user;
-    }
+    // Login kontrolü (email + password match)
+    Optional<User> authenticate(String email, String password);
 }

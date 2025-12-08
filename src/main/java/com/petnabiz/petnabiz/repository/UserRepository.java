@@ -27,4 +27,10 @@ public interface UserRepository extends JpaRepository<User, String> {
     // 5) Login check (email + password)
     // (Bu JPA için tamamen legal çünkü modelde hem email hem password var)
     Optional<User> findByEmailAndPassword(String email, String password);
+
+    List<User> findByIsActiveFalse();
+
+    List<User> findByIsActiveTrue();
+
+    List<User> findByRoleIgnoreCase(String role);
 }
