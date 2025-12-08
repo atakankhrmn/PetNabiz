@@ -54,4 +54,7 @@ public interface MedicationRepository extends JpaRepository<Medication, String> 
     List<Medication> findByMedicalRecord_RecordId(String recordId);
 
     List<Medication> findByPet_PetId(String petId);
+    
+    List<Medication> findByMedicalRecord_Pet_PetId(String petId);
+
 }
