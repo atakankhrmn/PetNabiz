@@ -1,29 +1,30 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Admin;
+import com.petnabiz.petnabiz.dto.request.admin.AdminCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.admin.AdminUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.admin.AdminResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface AdminService {
 
     // Tüm admin'leri getir
-    List<Admin> getAllAdmins();
+    List<AdminResponseDTO> getAllAdmins();
 
-    // ID ile admin bul
-    Optional<Admin> getAdminById(String adminId);
+    // ID ile admin getir
+    AdminResponseDTO getAdminById(String adminId);
 
-    // Email ile admin bul (login sonrası vs.)
-    Optional<Admin> getAdminByEmail(String email);
+    // Email ile admin getir (login / admin paneli)
+    AdminResponseDTO getAdminByEmail(String email);
 
-    // Full name'e göre arama
-    List<Admin> searchAdminsByFullName(String namePart);
+    // İsme göre arama
+    List<AdminResponseDTO> searchAdminsByFullName(String namePart);
 
     // Yeni admin oluştur
-    Admin createAdmin(Admin admin);
+    AdminResponseDTO createAdmin(AdminCreateRequestDTO dto);
 
-    // Var olan admin'i güncelle (şimdilik sadece fullName)
-    Admin updateAdmin(String adminId, Admin updatedAdmin);
+    // Admin güncelle
+    AdminResponseDTO updateAdmin(String adminId, AdminUpdateRequestDTO dto);
 
     // Admin sil
     void deleteAdmin(String adminId);

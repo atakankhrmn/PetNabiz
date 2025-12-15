@@ -1,41 +1,26 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Appointment;
+import com.petnabiz.petnabiz.dto.request.appointment.AppointmentCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.appointment.AppointmentUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.appointment.AppointmentResponseDTO;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 public interface AppointmentService {
 
-    // Tüm randevuları getir
-    List<Appointment> getAllAppointments();
+    AppointmentResponseDTO createAppointment(AppointmentCreateRequestDTO dto);
 
-    // ID ile randevu bul
-    Optional<Appointment> getAppointmentById(String appointmentId);
+    List<AppointmentResponseDTO> getAllAppointments();
 
-    // Belirli bir pet için tüm randevular
-    List<Appointment> getAppointmentsByPetId(String petId);
+    AppointmentResponseDTO getAppointmentById(String appointmentId);
 
-    // Belirli bir vet için tüm randevular
-    List<Appointment> getAppointmentsByVeterinaryId(String vetId);
+    List<AppointmentResponseDTO> getAppointmentsByPetId(String petId);
 
-    // Vet + tarih aralığına göre randevular (takvim/rapor)
-    List<Appointment> getAppointmentsByVeterinaryAndDateRange(
-            String vetId,
-            LocalDate startDate,
-            LocalDate endDate
-    );
+    List<AppointmentResponseDTO> getAppointmentsByVeterinaryId(String vetId);
 
-    // Clinicteki tüm appointmentları listeler
-    public List<Appointment> getAppointmentsByClinicId(String clinicId);
+    List<AppointmentResponseDTO> getAppointmentsByClinicId(String clinicId);
 
-    // Yeni randevu oluştur (pet + vet atanmış şekilde gelir)
-    Appointment createAppointment(Appointment appointment);
+    AppointmentResponseDTO updateAppointment(String appointmentId, AppointmentUpdateRequestDTO dto);
 
-    // Randevu güncelle (örnek: tarih/saat/pet/vet değişimi)
-    Appointment updateAppointment(String appointmentId, Appointment updatedAppointment);
-
-    // Randevu sil
     void deleteAppointment(String appointmentId);
 }
