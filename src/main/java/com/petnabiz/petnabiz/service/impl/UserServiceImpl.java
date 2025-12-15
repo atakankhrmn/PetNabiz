@@ -139,6 +139,17 @@ public class UserServiceImpl implements UserService {
     //SIKINTI BURASI KARDESIM YA
     @Override
     public Optional<User> authenticate(String email, String password) {
-        return userRepository.findByEmailAndPassword(email, password);
+        Optional<User> opt = userRepository.findByEmail(email);
+        if (opt.isEmpty()) return Optional.empty();
+
+        User u = opt.get();
+
+        // aktif değilse geçmesin
+        if (!u.isActive()) return Optional.empty();
+
+        // düz şifre kıyas
+        if (u.getPassword() == null) return Optional.empty();
+
+        return u.getPassword().equals(password) ? Optional.of(u) : Optional.empty();
     }
 }
