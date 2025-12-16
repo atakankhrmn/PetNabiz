@@ -74,4 +74,11 @@ public class Medication {
     public void setMedicine(Medicine medicine) {
         this.medicine = medicine;
     }
+
+    public void setMedicalRecord(MedicalRecord record) {
+    }
+
+    public MedicalRecord getMedicalRecord(){
+        return medicalRecord;
+    }
 }
