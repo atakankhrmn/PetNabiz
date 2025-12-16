@@ -21,11 +21,19 @@ public class VeterinaryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('CLINIC')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<VeterinaryResponseDTO>> getAllVeterinaries() {
         // Eğer CLINIC burada sadece kendi vetlerini görsün istiyorsan
         // bu endpointi kaldırıp sadece /clinic/{clinicId} kullanmak daha temiz.
         return ResponseEntity.ok(veterinaryService.getAllVeterinaries());
+    }
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CLINIC')")
+    public ResponseEntity<List<VeterinaryResponseDTO>> getAllMyVeterinaries() {
+        // Eğer CLINIC burada sadece kendi vetlerini görsün istiyorsan
+        // bu endpointi kaldırıp sadece /clinic/{clinicId} kullanmak daha temiz.
+        return ResponseEntity.ok(veterinaryService.getAllMyVeterinaries());
     }
 
     @GetMapping("/{vetId}")

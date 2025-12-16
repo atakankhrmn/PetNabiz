@@ -2,6 +2,7 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.dto.response.veterinary.VeterinaryResponseDTO;
 import com.petnabiz.petnabiz.mapper.VeterinaryMapper;
 import com.petnabiz.petnabiz.model.Clinic;
@@ -11,6 +12,8 @@ import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.VeterinaryService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -161,4 +164,25 @@ public class VeterinaryServiceImpl implements VeterinaryService {
                 .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen veterinary bulunamadı: " + vetId));
         veterinaryRepository.delete(v);
     }
+
+    @Override
+    public List<VeterinaryResponseDTO> getAllMyVeterinaries() {
+
+        String email = currentEmail();
+
+        Clinic clinic = clinicRepository.findByUser_Email(email)
+                .orElseThrow(() -> new RuntimeException("Clinic not found for email: " + email));
+
+        return veterinaryRepository.findByClinic_ClinicId(clinic.getClinicId())
+                .stream()
+                .map(veterinaryMapper::toResponse)
+                .toList();
+    }
+
+    private String currentEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalStateException("Authentication yok.");
+        return auth.getName(); // username = email (SecurityUserDetailsService)
+    }
+
 }

@@ -2,6 +2,7 @@ package com.petnabiz.petnabiz.service;
 
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.dto.response.veterinary.VeterinaryResponseDTO;
 
 import java.util.List;
@@ -24,4 +25,6 @@ public interface VeterinaryService {
     boolean isClinicOwner(String clinicEmail, String clinicId);
 
     boolean isClinicOwnerOfVet(String clinicEmail, String vetId);
+
+    public List<VeterinaryResponseDTO> getAllMyVeterinaries();
 }
