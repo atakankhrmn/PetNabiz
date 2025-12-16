@@ -1,5 +1,9 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.response.appointment.AppointmentResponseDTO;
+import com.petnabiz.petnabiz.dto.response.slot.SlotResponseDTO;
+import com.petnabiz.petnabiz.mapper.AppointmentMapper;
+import com.petnabiz.petnabiz.mapper.SlotMapper;
 import com.petnabiz.petnabiz.model.Appointment;
 import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.model.Slot;
@@ -25,21 +29,28 @@ public class SlotServiceImpl implements SlotService {
     private final VeterinaryRepository veterinaryRepository;
     private final PetRepository petRepository;
     private final AppointmentRepository appointmentRepository;
+    private final SlotMapper slotMapper;
+    private final AppointmentMapper appointmentMapper;
 
     public SlotServiceImpl(SlotRepository slotRepository,
                            VeterinaryRepository veterinaryRepository,
                            PetRepository petRepository,
-                           AppointmentRepository appointmentRepository) {
+                           AppointmentRepository appointmentRepository,
+                           SlotMapper slotMapper,
+                           AppointmentMapper appointmentMapper) {
         this.slotRepository = slotRepository;
         this.veterinaryRepository = veterinaryRepository;
         this.petRepository = petRepository;
         this.appointmentRepository = appointmentRepository;
+        this.slotMapper = slotMapper;
+        this.appointmentMapper = appointmentMapper;
     }
 
     @Override
     @Transactional
     public void createDailySlots(String vetId, LocalDate date) {
-        Veterinary vet = veterinaryRepository.findById(vetId)
+
+        Veterinary vet = veterinaryRepository.findByVetId(vetId)
                 .orElseThrow(() -> new EntityNotFoundException("Veterinary not found: " + vetId));
 
         List<LocalTime> times = List.of(
@@ -60,41 +71,42 @@ public class SlotServiceImpl implements SlotService {
         try {
             slotRepository.saveAll(slots);
         } catch (DataIntegrityViolationException e) {
-            // unique(vet_id, date, time) yüzünden aynı gün tekrar üretmeye çalışınca buraya düşebilir
-            // İstersen burada log atarsın, ben sessiz geçtim.
+            // unique(vet_id, date, time) -> aynı gün tekrar generate edilirse patlar, sessiz geçiyoruz
         }
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Slot> getAvailableSlots(String vetId, LocalDate date) {
-        return slotRepository.findByVeterinary_VetIdAndDateAndIsBookedFalse(vetId, date);
+    public List<SlotResponseDTO> getAvailableSlots(String vetId, LocalDate date) {
+        return slotRepository.findByVeterinary_VetIdAndDateAndIsBookedFalse(vetId, date)
+                .stream()
+                .map(slotMapper::toResponse)
+                .toList();
     }
 
     @Override
     @Transactional
-    public Appointment bookSlot(Long slotId, String petId) {
-        // 1) Atomik rezervasyon (race condition bitiyor)
+    public AppointmentResponseDTO bookSlot(Long slotId, String petId) {
+
         int updated = slotRepository.bookSlot(slotId);
         if (updated == 0) {
             throw new IllegalStateException("Slot already booked (slotId=" + slotId + ")");
         }
 
-        // 2) Slot + Pet + Vet çek
         Slot slot = slotRepository.findById(slotId)
                 .orElseThrow(() -> new EntityNotFoundException("Slot not found: " + slotId));
 
-        Pet pet = petRepository.findById(petId)
+        Pet pet = petRepository.findByPetId(petId)
                 .orElseThrow(() -> new EntityNotFoundException("Pet not found: " + petId));
 
-        // 3) Appointment oluştur
         Appointment appt = new Appointment();
         appt.setDate(slot.getDate());
         appt.setTime(slot.getTime());
-        appt.setStatus("Active"); // siz enum/string ne kullanıyorsanız ona göre ayarla
+        appt.setStatus("Active"); // siz enum yapacaksan sonra değiştirirsiniz
         appt.setVeterinary(slot.getVeterinary());
         appt.setPet(pet);
 
-        return appointmentRepository.save(appt);
+        Appointment saved = appointmentRepository.save(appt);
+        return appointmentMapper.toResponse(saved);
     }
 }

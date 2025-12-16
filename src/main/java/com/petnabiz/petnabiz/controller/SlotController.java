@@ -1,7 +1,9 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.Appointment;
-import com.petnabiz.petnabiz.model.Slot;
+import com.petnabiz.petnabiz.dto.request.slot.SlotBookRequestDTO;
+import com.petnabiz.petnabiz.dto.response.appointment.AppointmentResponseDTO;
+import com.petnabiz.petnabiz.dto.response.slot.SlotGenerateResponseDTO;
+import com.petnabiz.petnabiz.dto.response.slot.SlotResponseDTO;
 import com.petnabiz.petnabiz.service.SlotService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -9,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/slots")
@@ -21,46 +22,44 @@ public class SlotController {
         this.slotService = slotService;
     }
 
-    // 1) Günlük slot üret (vet + date için 8 slot)
     @PostMapping("/{vetId}/{date}/generate")
-    public ResponseEntity<?> generateDailySlots(
+    public ResponseEntity<SlotGenerateResponseDTO> generateDailySlots(
             @PathVariable String vetId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         slotService.createDailySlots(vetId, date);
-        return ResponseEntity.ok(Map.of(
-                "message", "Slots generated (if not already existing).",
-                "vetId", vetId,
-                "date", date.toString()
-        ));
+
+        SlotGenerateResponseDTO res = new SlotGenerateResponseDTO();
+        res.setMessage("Slots generated (if not already existing).");
+        res.setVetId(vetId);
+        res.setDate(date);
+
+        return ResponseEntity.ok(res);
     }
 
-    // 2) Boş slotları getir
-    // Örn: /api/slots/available?vetId=7777&date=2025-12-15
     @GetMapping("/available")
-    public ResponseEntity<List<Slot>> getAvailableSlots(
+    public ResponseEntity<List<SlotResponseDTO>> getAvailableSlots(
             @RequestParam String vetId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return ResponseEntity.ok(slotService.getAvailableSlots(vetId, date));
     }
 
-    // 3) Slotu rezerve et + appointment oluştur
-    // Örn: /api/slots/12/book?petId=3162
     @PostMapping("/{slotId}/book")
     public ResponseEntity<?> bookSlot(
             @PathVariable Long slotId,
-            @RequestParam String petId
+            @RequestBody SlotBookRequestDTO req
     ) {
         try {
-            Appointment created = slotService.bookSlot(slotId, petId);
+            AppointmentResponseDTO created = slotService.bookSlot(slotId, req.getPetId());
             return ResponseEntity.ok(created);
         } catch (IllegalStateException e) {
-            // Slot dolu
-            return ResponseEntity.status(409).body(Map.of(
-                    "error", "SLOT_ALREADY_BOOKED",
-                    "message", e.getMessage()
-            ));
+            return ResponseEntity.status(409).body(
+                    java.util.Map.of(
+                            "error", "SLOT_ALREADY_BOOKED",
+                            "message", e.getMessage()
+                    )
+            );
         }
     }
 }

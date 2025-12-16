@@ -1,111 +1,130 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
+import com.petnabiz.petnabiz.mapper.PetMapper;
 import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.model.PetOwner;
-import com.petnabiz.petnabiz.repository.ClinicRepository;
 import com.petnabiz.petnabiz.repository.PetOwnerRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.service.PetService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class PetServiceImpl implements PetService {
 
     private final PetRepository petRepository;
     private final PetOwnerRepository petOwnerRepository;
-    private final ClinicRepository clinicRepository;
+    private final PetMapper petMapper;
 
-
-    // Constructor injection
     public PetServiceImpl(PetRepository petRepository,
-                          PetOwnerRepository petOwnerRepository, ClinicRepository clinicRepository) {
+                          PetOwnerRepository petOwnerRepository,
+                          PetMapper petMapper) {
         this.petRepository = petRepository;
         this.petOwnerRepository = petOwnerRepository;
-        this.clinicRepository = clinicRepository;
+        this.petMapper = petMapper;
     }
 
     @Override
-    public List<Pet> getAllPets() {
-        return petRepository.findAll();
+    public List<PetResponseDTO> getAllPets() {
+        return petRepository.findAll().stream()
+                .map(petMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<Pet> getPetById(String petId) {
-        return petRepository.findByPetId(petId);
-        // veya: return petRepository.findById(petId);
+    public PetResponseDTO getPetById(String petId) {
+        Pet p = petRepository.findByPetId(petId)
+                .orElseThrow(() -> new EntityNotFoundException("Pet bulunamadı: " + petId));
+        return petMapper.toResponse(p);
     }
 
     @Override
-    public List<Pet> getPetsByOwnerId(String ownerId) {
-        return petRepository.findByOwner_OwnerId(ownerId);
+    public List<PetResponseDTO> getPetsByOwnerId(String ownerId) {
+        return petRepository.findByOwner_OwnerId(ownerId).stream()
+                .map(petMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Pet> searchPetsByName(String namePart) {
-        return petRepository.findByNameContainingIgnoreCase(namePart);
+    public List<PetResponseDTO> searchPetsByName(String namePart) {
+        return petRepository.findByNameContainingIgnoreCase(namePart).stream()
+                .map(petMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Pet> getPetsBySpecies(String species) {
-        return petRepository.findBySpeciesIgnoreCase(species);
+    public List<PetResponseDTO> getPetsBySpecies(String species) {
+        return petRepository.findBySpeciesIgnoreCase(species).stream()
+                .map(petMapper::toResponse)
+                .toList();
     }
 
-    /*
     @Override
-    public List<Pet> getPetsBySpeciesAndBreed(String species, String breed) {
-        return petRepository.findBySpeciesIgnoreCaseAndBreedIgnoreCase(species, breed);
-    }
-    */
+    @Transactional
+    public PetResponseDTO createPet(PetCreateRequestDTO dto) {
 
-
-    //bu parametre olan peti nereden alıyor????
-    //application classında mı olacak, controllerda mı olacak??
-    @Override
-    public Pet createPet(Pet pet) {
-        // 1) Owner gerçekten var mı?
-        if (pet.getOwner() == null || pet.getOwner().getOwnerId() == null) {
-            throw new IllegalArgumentException("Pet için owner bilgisi zorunlu.");
+        if (dto.getOwnerId() == null || dto.getOwnerId().isBlank()) {
+            throw new IllegalArgumentException("Pet için ownerId zorunlu.");
+        }
+        if (dto.getSpecies() == null || dto.getSpecies().isBlank()) {
+            throw new IllegalArgumentException("Pet için species zorunlu.");
+        }
+        if (dto.getGender() == null || dto.getGender().isBlank()) {
+            throw new IllegalArgumentException("Pet için gender zorunlu.");
         }
 
-        String ownerId = pet.getOwner().getOwnerId();
+        PetOwner owner = petOwnerRepository.findByOwnerId(dto.getOwnerId())
+                .orElseThrow(() -> new IllegalArgumentException("Owner bulunamadı: " + dto.getOwnerId()));
 
-        PetOwner owner = petOwnerRepository.findByOwnerId(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("Owner bulunamadı: " + ownerId));
+        Pet pet = new Pet();
 
-        // 2) Pet'e owner'ı yeniden set et (DB'den gelen managed entity)
+        if (dto.getPetId() != null && !dto.getPetId().isBlank()) {
+            pet.setPetId(dto.getPetId());
+        }
+
+        pet.setName(dto.getName());
+        pet.setSpecies(dto.getSpecies());
+        pet.setBreed(dto.getBreed());
+        pet.setGender(dto.getGender());
+        pet.setPhotoUrl(dto.getPhotoUrl());
+        pet.setBirthDate(dto.getBirthDate());
+        if (dto.getWeight() != null) pet.setWeight(dto.getWeight());
+
         pet.setOwner(owner);
 
-        // 3) Kaydet
-        return petRepository.save(pet);
+        Pet saved = petRepository.save(pet);
+        return petMapper.toResponse(saved);
     }
 
     @Override
-    public Pet updatePet(String petId, Pet updatedPet) {
-        // Önce eski pet'i çek
-        Pet existingPet = petRepository.findByPetId(petId)
-                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
+    @Transactional
+    public PetResponseDTO updatePet(String petId, PetUpdateRequestDTO dto) {
 
-        // Sadece modelde var olan field'leri güncelliyoruz
-        existingPet.setName(updatedPet.getName());
-        existingPet.setSpecies(updatedPet.getSpecies());
-        existingPet.setBreed(updatedPet.getBreed());
-        existingPet.setGender(updatedPet.getGender());
-        existingPet.setPhotoUrl(updatedPet.getPhotoUrl());
-        existingPet.setBirthDate(updatedPet.getBirthDate());
-        existingPet.setWeight(updatedPet.getWeight());
+        Pet existing = petRepository.findByPetId(petId)
+                .orElseThrow(() -> new EntityNotFoundException("Pet bulunamadı: " + petId));
 
-        // Owner değişimi de desteklemek istersen:
-        if (updatedPet.getOwner() != null && updatedPet.getOwner().getOwnerId() != null) {
-            String newOwnerId = updatedPet.getOwner().getOwnerId();
-            PetOwner newOwner = petOwnerRepository.findByOwnerId(newOwnerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni owner bulunamadı: " + newOwnerId));
-            existingPet.setOwner(newOwner);
+        if (dto.getName() != null) existing.setName(dto.getName());
+        if (dto.getSpecies() != null) existing.setSpecies(dto.getSpecies());
+        if (dto.getBreed() != null) existing.setBreed(dto.getBreed());
+        if (dto.getGender() != null) existing.setGender(dto.getGender());
+        if (dto.getPhotoUrl() != null) existing.setPhotoUrl(dto.getPhotoUrl());
+        if (dto.getBirthDate() != null) existing.setBirthDate(dto.getBirthDate());
+        if (dto.getWeight() != null) existing.setWeight(dto.getWeight());
+
+        if (dto.getOwnerId() != null && !dto.getOwnerId().isBlank()) {
+            PetOwner newOwner = petOwnerRepository.findByOwnerId(dto.getOwnerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Yeni owner bulunamadı: " + dto.getOwnerId()));
+            existing.setOwner(newOwner);
         }
 
-        return petRepository.save(existingPet);
+        Pet saved = petRepository.save(existing);
+        return petMapper.toResponse(saved);
     }
 
     @Override
@@ -114,22 +133,6 @@ public class PetServiceImpl implements PetService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen pet bulunamadı: " + petId);
         }
-        //petOwner'dan da silinecek mi????
-        //Cardinality'den dolayı iki tablodan da siliyor -Atakan
         petRepository.deleteById(petId);
     }
-
-    /*
-    @Override
-    public List<Pet> getPetsByClinicId(String clinicId) {
-
-        // 1) Klinik gerçekten var mı kontrol et
-        clinicRepository.findByClinicId(clinicId)
-                .orElseThrow(() -> new IllegalArgumentException("Klinik bulunamadı: " + clinicId));
-
-        // 2) Bu kliniğe bağlı tüm pet'leri getir
-        return petRepository.findByClinic_ClinicId(clinicId);
-    }
-     */
-
 }

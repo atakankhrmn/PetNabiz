@@ -1,70 +1,154 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.clinic.ClinicCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.clinic.ClinicUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.clinic.ClinicResponseDTO;
+import com.petnabiz.petnabiz.dto.summary.VetSummaryDTO;
+import com.petnabiz.petnabiz.mapper.ClinicMapper;
 import com.petnabiz.petnabiz.model.Clinic;
+import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.model.Veterinary;
 import com.petnabiz.petnabiz.repository.ClinicRepository;
+import com.petnabiz.petnabiz.repository.UserRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.ClinicService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ClinicServiceImpl implements ClinicService {
 
     private final ClinicRepository clinicRepository;
     private final VeterinaryRepository veterinaryRepository;
+    private final UserRepository userRepository;
+    private final ClinicMapper clinicMapper;
 
     public ClinicServiceImpl(ClinicRepository clinicRepository,
-                             VeterinaryRepository veterinaryRepository) {
+                             VeterinaryRepository veterinaryRepository,
+                             UserRepository userRepository,
+                             ClinicMapper clinicMapper) {
         this.clinicRepository = clinicRepository;
         this.veterinaryRepository = veterinaryRepository;
+        this.userRepository = userRepository;
+        this.clinicMapper = clinicMapper;
     }
 
     @Override
-    public List<Clinic> getAllClinics() {
-        return clinicRepository.findAll();
+    public List<ClinicResponseDTO> getAllClinics() {
+        return clinicRepository.findAll()
+                .stream()
+                .map(clinicMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<Clinic> getClinicById(String clinicId) {
-        return clinicRepository.findByClinicId(clinicId);
-        // veya: return clinicRepository.findById(clinicId);
+    public ClinicResponseDTO getClinicById(String clinicId) {
+        Clinic clinic = clinicRepository.findByClinicId(clinicId)
+                .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + clinicId));
+        return clinicMapper.toResponse(clinic);
     }
 
     @Override
-    public List<Clinic> searchClinicsByName(String namePart) {
-        return clinicRepository.findByNameContainingIgnoreCase(namePart);
+    public List<ClinicResponseDTO> searchClinicsByName(String namePart) {
+        return clinicRepository.findByNameContainingIgnoreCase(namePart)
+                .stream()
+                .map(clinicMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<Clinic> getClinicByEmail(String email) {
-        return clinicRepository.findByEmail(email);
+    public ClinicResponseDTO getClinicByEmail(String email) {
+        // Senin repo’da findByEmail varsa kullanabilirsin; ama email User’da olduğu için en garantisi user üzerinden gitmek:
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı (email): " + email));
+
+        Clinic clinic = clinicRepository.findByClinicId(user.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı (email): " + email));
+
+        return clinicMapper.toResponse(clinic);
     }
 
     @Override
-    public Clinic createClinic(Clinic clinic) {
-        // Email zaten var mı?
-        if (clinicRepository.existsByEmail((clinic.getEmail()))) {
-            throw new IllegalArgumentException("Bu email ile zaten bir klinik kayıtlı.");
+    @Transactional
+    public ClinicResponseDTO createClinic(ClinicCreateRequestDTO dto) {
+
+        if (dto.getClinicId() == null || dto.getClinicId().isBlank()) {
+            throw new IllegalArgumentException("clinicId zorunlu.");
+        }
+        if (dto.getEmail() == null || dto.getEmail().isBlank()) {
+            throw new IllegalArgumentException("email zorunlu.");
+        }
+        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
+            throw new IllegalArgumentException("password zorunlu.");
         }
 
-        return clinicRepository.save(clinic);
+        // email unique kontrolü user üzerinden
+        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
+        }
+
+        // user oluştur (MapsId: clinicId = userId)
+        User user = new User();
+        user.setUserId(dto.getClinicId());
+        user.setEmail(dto.getEmail());
+        user.setPassword(dto.getPassword()); // TODO: hashle
+        user.setRole("ROLE_CLINIC");
+        user.setActive(true);
+
+        userRepository.save(user);
+
+        Clinic clinic = new Clinic();
+        clinic.setClinicId(user.getUserId());
+        clinic.setUser(user);
+
+        clinic.setName(dto.getName());
+        clinic.setCity(dto.getCity());
+        clinic.setDistrict(dto.getDistrict());
+        clinic.setAddress(dto.getAddress());
+        clinic.setPhone(dto.getPhone());
+
+        Clinic saved = clinicRepository.save(clinic);
+        return clinicMapper.toResponse(saved);
     }
 
     @Override
-    public Clinic updateClinic(String clinicId, Clinic updatedClinic) {
+    @Transactional
+    public ClinicResponseDTO updateClinic(String clinicId, ClinicUpdateRequestDTO dto) {
+
         Clinic existing = clinicRepository.findByClinicId(clinicId)
-                .orElseThrow(() -> new IllegalArgumentException("Clinic bulunamadı: " + clinicId));
+                .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + clinicId));
 
-        // Modelde olan alanları güncelle
-        existing.setName(updatedClinic.getName());
-        existing.setAddress(updatedClinic.getAddress());
-        existing.setPhone(updatedClinic.getPhone());
-        existing.setEmail(updatedClinic.getEmail());
+        // clinic alanları (null değilse güncelle)
+        if (dto.getName() != null) existing.setName(dto.getName());
+        if (dto.getCity() != null) existing.setCity(dto.getCity());
+        if (dto.getDistrict() != null) existing.setDistrict(dto.getDistrict());
+        if (dto.getAddress() != null) existing.setAddress(dto.getAddress());
+        if (dto.getPhone() != null) existing.setPhone(dto.getPhone());
 
-        return clinicRepository.save(existing);
+        // user alanları
+        if (existing.getUser() == null) {
+            throw new IllegalStateException("Clinic'in user kaydı yok: " + clinicId);
+        }
+
+        if (dto.getEmail() != null) {
+            // email çakışma kontrolü
+            userRepository.findByEmail(dto.getEmail()).ifPresent(u -> {
+                if (!u.getUserId().equals(existing.getUser().getUserId())) {
+                    throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
+                }
+            });
+            existing.getUser().setEmail(dto.getEmail());
+        }
+
+        if (dto.getActive() != null) {
+            existing.getUser().setActive(dto.getActive());
+        }
+
+        Clinic saved = clinicRepository.save(existing);
+        return clinicMapper.toResponse(saved);
     }
 
     @Override
@@ -73,17 +157,15 @@ public class ClinicServiceImpl implements ClinicService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen klinik bulunamadı: " + clinicId);
         }
-
         clinicRepository.deleteById(clinicId);
     }
 
     @Override
-    public List<Veterinary> getVeterinariesByClinic(String clinicId) {
-        // Önce klinik var mı?
+    public List<VetSummaryDTO> getVeterinariesByClinic(String clinicId) {
         clinicRepository.findByClinicId(clinicId)
-                .orElseThrow(() -> new IllegalArgumentException("Clinic bulunamadı: " + clinicId));
+                .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + clinicId));
 
-        // VeterinaryRepository üzerinden çekiyoruz
-        return veterinaryRepository.findByClinic_ClinicId(clinicId);
+        List<Veterinary> vets = veterinaryRepository.findByClinic_ClinicId(clinicId);
+        return vets.stream().map(clinicMapper::toVetSummary).toList();
     }
 }

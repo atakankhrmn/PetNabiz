@@ -11,8 +11,6 @@ public class AppointmentResponseDTO {
     private LocalDate date;
     private LocalTime time;
     private String status;
-    private String reason;
-
-    private String petId;   // summary yerine şimdilik id dönelim (en garanti)
     private String vetId;
+    private String petId;
 }

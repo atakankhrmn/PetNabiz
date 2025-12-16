@@ -1,32 +1,26 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.PetOwner;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.petowner.PetOwnerResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface PetOwnerService {
 
-    // Tüm owner'lar
-    List<PetOwner> getAllPetOwners();
+    List<PetOwnerResponseDTO> getAllPetOwners();
 
-    // ID ile owner bul
-    Optional<PetOwner> getPetOwnerById(String ownerId);
+    PetOwnerResponseDTO getPetOwnerById(String ownerId);
 
-    // User email ile owner bul (login sonrası vs.)
-    Optional<PetOwner> getPetOwnerByEmail(String email);
+    PetOwnerResponseDTO getPetOwnerByEmail(String email);
 
-    // İsim bazlı aramalar
-    List<PetOwner> searchPetOwnersByFirstName(String firstNamePart);
+    List<PetOwnerResponseDTO> searchPetOwnersByFirstName(String firstNamePart);
 
-    List<PetOwner> searchPetOwnersByLastName(String lastNamePart);
+    List<PetOwnerResponseDTO> searchPetOwnersByLastName(String lastNamePart);
 
-    // Yeni owner oluştur
-    PetOwner createPetOwner(PetOwner petOwner);
+    PetOwnerResponseDTO createPetOwner(PetOwnerCreateRequestDTO dto);
 
-    // Var olan owner'ı güncelle
-    PetOwner updatePetOwner(String ownerId, PetOwner updatedOwner);
+    PetOwnerResponseDTO updatePetOwner(String ownerId, PetOwnerUpdateRequestDTO dto);
 
-    // Owner sil
     void deletePetOwner(String ownerId);
 }

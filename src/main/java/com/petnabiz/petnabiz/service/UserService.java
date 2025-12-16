@@ -1,45 +1,34 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.User;
+import com.petnabiz.petnabiz.dto.request.user.*;
+import com.petnabiz.petnabiz.dto.response.user.AuthResponseDTO;
+import com.petnabiz.petnabiz.dto.response.user.UserResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserService {
 
-    // Tüm kullanıcılar
-    List<User> getAllUsers();
+    List<UserResponseDTO> getAllUsers();
 
-    // ID ile bul
-    Optional<User> getUserById(String userId);
+    UserResponseDTO getUserById(String userId);
 
-    // Email ile bul
-    Optional<User> getUserByEmail(String email);
+    UserResponseDTO getUserByEmail(String email);
 
-    // Role göre kullanıcılar (ADMIN, OWNER, VET vs.)
-    List<User> getUsersByRole(String role);
+    List<UserResponseDTO> getUsersByRole(String role);
 
-    // Aktif kullanıcılar
-    List<User> getActiveUsers();
+    List<UserResponseDTO> getActiveUsers();
 
-    // Pasif kullanıcılar
-    List<User> getInactiveUsers();
+    List<UserResponseDTO> getInactiveUsers();
 
-    // Yeni kullanıcı oluştur
-    User createUser(User user);
+    UserResponseDTO createUser(UserCreateRequestDTO dto);
 
-    // Kullanıcı güncelle
-    User updateUser(String userId, User updatedUser);
+    UserResponseDTO updateUser(String userId, UserUpdateRequestDTO dto);
 
-    // Şifre güncelle
-    User updatePassword(String userId, String newPassword);
+    UserResponseDTO updatePassword(String userId, UserPasswordUpdateRequestDTO dto);
 
-    // Aktiflik değiştir
-    User setActiveStatus(String userId, boolean active);
+    UserResponseDTO setActiveStatus(String userId, boolean active);
 
-    // Kullanıcı sil
     void deleteUser(String userId);
 
-    // Login kontrolü (email + password match)
-    Optional<User> authenticate(String email, String password);
+    AuthResponseDTO authenticate(AuthRequestDTO dto);
 }

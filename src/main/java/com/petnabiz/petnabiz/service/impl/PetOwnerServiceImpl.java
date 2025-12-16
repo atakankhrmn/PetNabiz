@@ -1,102 +1,146 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.petowner.PetOwnerResponseDTO;
+import com.petnabiz.petnabiz.mapper.PetOwnerMapper;
 import com.petnabiz.petnabiz.model.PetOwner;
 import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.repository.PetOwnerRepository;
 import com.petnabiz.petnabiz.repository.UserRepository;
 import com.petnabiz.petnabiz.service.PetOwnerService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class PetOwnerServiceImpl implements PetOwnerService {
 
     private final PetOwnerRepository petOwnerRepository;
     private final UserRepository userRepository;
+    private final PetOwnerMapper petOwnerMapper;
 
     public PetOwnerServiceImpl(PetOwnerRepository petOwnerRepository,
-                               UserRepository userRepository) {
+                               UserRepository userRepository,
+                               PetOwnerMapper petOwnerMapper) {
         this.petOwnerRepository = petOwnerRepository;
         this.userRepository = userRepository;
+        this.petOwnerMapper = petOwnerMapper;
     }
 
     @Override
-    public List<PetOwner> getAllPetOwners() {
-        return petOwnerRepository.findAll();
+    public List<PetOwnerResponseDTO> getAllPetOwners() {
+        return petOwnerRepository.findAll().stream()
+                .map(petOwnerMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<PetOwner> getPetOwnerById(String ownerId) {
-        return petOwnerRepository.findByOwnerId(ownerId);
-        // veya: return petOwnerRepository.findById(ownerId);
+    public PetOwnerResponseDTO getPetOwnerById(String ownerId) {
+        PetOwner o = petOwnerRepository.findByOwnerId(ownerId)
+                .orElseThrow(() -> new EntityNotFoundException("PetOwner bulunamadı: " + ownerId));
+        return petOwnerMapper.toResponse(o);
     }
 
     @Override
-    public Optional<PetOwner> getPetOwnerByEmail(String email) {
-        return petOwnerRepository.findByUser_Email(email);
+    public PetOwnerResponseDTO getPetOwnerByEmail(String email) {
+        PetOwner o = petOwnerRepository.findByUser_Email(email)
+                .orElseThrow(() -> new EntityNotFoundException("PetOwner bulunamadı (email): " + email));
+        return petOwnerMapper.toResponse(o);
     }
 
     @Override
-    public List<PetOwner> searchPetOwnersByFirstName(String firstNamePart) {
-        return petOwnerRepository.findByFirstNameContainingIgnoreCase(firstNamePart);
+    public List<PetOwnerResponseDTO> searchPetOwnersByFirstName(String firstNamePart) {
+        return petOwnerRepository.findByFirstNameContainingIgnoreCase(firstNamePart)
+                .stream()
+                .map(petOwnerMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<PetOwner> searchPetOwnersByLastName(String lastNamePart) {
-        return petOwnerRepository.findByLastNameContainingIgnoreCase(lastNamePart);
+    public List<PetOwnerResponseDTO> searchPetOwnersByLastName(String lastNamePart) {
+        return petOwnerRepository.findByLastNameContainingIgnoreCase(lastNamePart)
+                .stream()
+                .map(petOwnerMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public PetOwner createPetOwner(PetOwner petOwner) {
-        /*
-         * Tasarımın gereği:
-         * PetOwner.ownerId = User.userId (MapsId)
-         * O yüzden:
-         *  - Elimizdeki PetOwner için User gerçekten var mı kontrol ediyoruz
-         *  - DB'den gerçek User nesnesini çekip PetOwner'a set ediyoruz
-         */
+    @Transactional
+    public PetOwnerResponseDTO createPetOwner(PetOwnerCreateRequestDTO dto) {
 
-        if (petOwner.getUser() == null) {
-            throw new IllegalArgumentException("PetOwner için user bilgisi zorunlu.");
+        if (dto.getOwnerId() == null || dto.getOwnerId().isBlank()) {
+            throw new IllegalArgumentException("ownerId (userId) zorunlu.");
+        }
+        if (dto.getEmail() == null || dto.getEmail().isBlank()) {
+            throw new IllegalArgumentException("email zorunlu.");
+        }
+        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
+            throw new IllegalArgumentException("password zorunlu.");
         }
 
-        User ownerUser;
-
-        // Öncelik: userId doluysa userId üzerinden git
-        if (petOwner.getUser().getUserId() != null) {
-            String userId = petOwner.getUser().getUserId();
-            ownerUser = userRepository.findByUserId(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("User bulunamadı: " + userId));
-        } else if (petOwner.getUser().getEmail() != null) {
-            // userId yok ama email varsa email'den bulmayı dene
-            String email = petOwner.getUser().getEmail();
-            ownerUser = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new IllegalArgumentException("User bulunamadı: " + email));
-        } else {
-            throw new IllegalArgumentException("User için userId veya email bilgisi sağlanmalı.");
+        // email benzersiz mi?
+        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
         }
 
-        // MapsId: ownerId = userId
-        petOwner.setOwnerId(ownerUser.getUserId());
-        petOwner.setUser(ownerUser);
+        // user oluştur
+        User user = new User();
+        user.setUserId(dto.getOwnerId());
+        user.setEmail(dto.getEmail());
+        user.setPassword(dto.getPassword()); // TODO hash
+        user.setRole("ROLE_OWNER");
+        user.setActive(true);
+        userRepository.save(user);
 
-        return petOwnerRepository.save(petOwner);
+        // petOwner oluştur
+        PetOwner owner = new PetOwner();
+        owner.setOwnerId(user.getUserId());
+        owner.setUser(user);
+        owner.setFirstName(dto.getFirstName());
+        owner.setLastName(dto.getLastName());
+        owner.setPhone(dto.getPhone());
+        owner.setAddress(dto.getAddress());
+
+        PetOwner saved = petOwnerRepository.save(owner);
+        return petOwnerMapper.toResponse(saved);
     }
 
     @Override
-    public PetOwner updatePetOwner(String ownerId, PetOwner updatedOwner) {
-        PetOwner existingOwner = petOwnerRepository.findByOwnerId(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("PetOwner bulunamadı: " + ownerId));
+    @Transactional
+    public PetOwnerResponseDTO updatePetOwner(String ownerId, PetOwnerUpdateRequestDTO dto) {
 
-        // Sadece PetOwner alanlarını güncelliyoruz (User login bilgilerine dokunmuyoruz)
-        existingOwner.setFirstName(updatedOwner.getFirstName());
-        existingOwner.setLastName(updatedOwner.getLastName());
-        existingOwner.setPhone(updatedOwner.getPhone());
-        existingOwner.setAddress(updatedOwner.getAddress());
+        PetOwner existing = petOwnerRepository.findByOwnerId(ownerId)
+                .orElseThrow(() -> new EntityNotFoundException("PetOwner bulunamadı: " + ownerId));
 
-        return petOwnerRepository.save(existingOwner);
+        // owner alanları
+        if (dto.getFirstName() != null) existing.setFirstName(dto.getFirstName());
+        if (dto.getLastName() != null) existing.setLastName(dto.getLastName());
+        if (dto.getPhone() != null) existing.setPhone(dto.getPhone());
+        if (dto.getAddress() != null) existing.setAddress(dto.getAddress());
+
+        // user alanları
+        if (existing.getUser() == null) {
+            throw new IllegalStateException("PetOwner user kaydı yok: " + ownerId);
+        }
+
+        if (dto.getEmail() != null) {
+            userRepository.findByEmail(dto.getEmail()).ifPresent(u -> {
+                if (!u.getUserId().equals(existing.getUser().getUserId())) {
+                    throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
+                }
+            });
+            existing.getUser().setEmail(dto.getEmail());
+        }
+
+        if (dto.getActive() != null) {
+            existing.getUser().setActive(dto.getActive());
+        }
+
+        PetOwner saved = petOwnerRepository.save(existing);
+        return petOwnerMapper.toResponse(saved);
     }
 
     @Override
@@ -105,7 +149,6 @@ public class PetOwnerServiceImpl implements PetOwnerService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen PetOwner bulunamadı: " + ownerId);
         }
-
         petOwnerRepository.deleteById(ownerId);
     }
 }

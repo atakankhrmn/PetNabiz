@@ -1,9 +1,15 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.user.*;
+import com.petnabiz.petnabiz.dto.response.user.AuthResponseDTO;
+import com.petnabiz.petnabiz.dto.response.user.UserResponseDTO;
+import com.petnabiz.petnabiz.mapper.UserMapper;
 import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.repository.UserRepository;
 import com.petnabiz.petnabiz.service.UserService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,117 +18,144 @@ import java.util.Optional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository,
+                           UserMapper userMapper) {
         this.userRepository = userRepository;
+        this.userMapper = userMapper;
     }
 
     @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponseDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<User> getUserById(String userId) {
-        return userRepository.findByUserId(userId);
+    public UserResponseDTO getUserById(String userId) {
+        User u = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı: " + userId));
+        return userMapper.toResponse(u);
     }
 
     @Override
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public UserResponseDTO getUserByEmail(String email) {
+        User u = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı (email): " + email));
+        return userMapper.toResponse(u);
     }
 
     @Override
-    public List<User> getUsersByRole(String role) {
-        return userRepository.findByRoleIgnoreCase(role);
+    public List<UserResponseDTO> getUsersByRole(String role) {
+        return userRepository.findByRoleIgnoreCase(role).stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<User> getActiveUsers() {
-        return userRepository.findByIsActiveTrue();
+    public List<UserResponseDTO> getActiveUsers() {
+        return userRepository.findByIsActiveTrue().stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<User> getInactiveUsers() {
-        return userRepository.findByIsActiveFalse();
+    public List<UserResponseDTO> getInactiveUsers() {
+        return userRepository.findByIsActiveFalse().stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public User createUser(User user) {
+    @Transactional
+    public UserResponseDTO createUser(UserCreateRequestDTO dto) {
 
-        // Email dolu mu?
-        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+        if (dto.getUserId() == null || dto.getUserId().trim().isEmpty()) {
+            throw new IllegalArgumentException("userId boş olamaz.");
+        }
+        if (dto.getEmail() == null || dto.getEmail().trim().isEmpty()) {
             throw new IllegalArgumentException("Email boş olamaz.");
         }
-
-        // Password dolu mu?
-        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+        if (dto.getPassword() == null || dto.getPassword().trim().isEmpty()) {
             throw new IllegalArgumentException("Password boş olamaz.");
         }
-
-        // Aynı email'e sahip kullanıcı var mı?
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new IllegalStateException("Bu email ile zaten bir kullanıcı kayıtlı: " + user.getEmail());
+        if (dto.getRole() == null || dto.getRole().trim().isEmpty()) {
+            throw new IllegalArgumentException("Role boş olamaz.");
         }
 
-        // ID çakışması kontrolü
-        if (userRepository.existsByUserId(user.getUserId())) {
-            throw new IllegalStateException("Bu userId zaten mevcut: " + user.getUserId());
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new IllegalStateException("Bu email ile zaten bir kullanıcı kayıtlı: " + dto.getEmail());
+        }
+        if (userRepository.existsByUserId(dto.getUserId())) {
+            throw new IllegalStateException("Bu userId zaten mevcut: " + dto.getUserId());
         }
 
-        return userRepository.save(user);
+        User u = new User();
+        u.setUserId(dto.getUserId());
+        u.setEmail(dto.getEmail());
+        u.setPassword(dto.getPassword()); // TODO hash
+        u.setRole(dto.getRole());
+        u.setActive(dto.isActive());
+
+        User saved = userRepository.save(u);
+        return userMapper.toResponse(saved);
     }
 
     @Override
-    public User updateUser(String userId, User updatedUser) {
+    @Transactional
+    public UserResponseDTO updateUser(String userId, UserUpdateRequestDTO dto) {
+
         User existing = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User bulunamadı: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı: " + userId));
 
-        // Email değişiyorsa, çakışma kontrolü yap
-        if (updatedUser.getEmail() != null) {
-
-            Optional<User> found = userRepository.findByEmail(updatedUser.getEmail());
-
-            // Başka bir kullanıcı aynı email'i kullanıyor mu?
+        if (dto.getEmail() != null) {
+            Optional<User> found = userRepository.findByEmail(dto.getEmail());
             if (found.isPresent() && !found.get().getUserId().equals(userId)) {
                 throw new IllegalStateException("Bu email başka bir kullanıcı tarafından kullanılıyor.");
             }
-
-            existing.setEmail(updatedUser.getEmail());
+            existing.setEmail(dto.getEmail());
         }
 
-        // Role güncelle
-        if (updatedUser.getRole() != null) {
-            existing.setRole(updatedUser.getRole());
+        if (dto.getRole() != null) {
+            existing.setRole(dto.getRole());
         }
 
-        // Active durumu güncelle
-        existing.setActive(updatedUser.isActive());
+        // en büyük bug: eskiden updatedUser.isActive() ile false basıyordun.
+        if (dto.getActive() != null) {
+            existing.setActive(dto.getActive());
+        }
 
-        return userRepository.save(existing);
+        User saved = userRepository.save(existing);
+        return userMapper.toResponse(saved);
     }
 
     @Override
-    public User updatePassword(String userId, String newPassword) {
-        User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User bulunamadı: " + userId));
+    @Transactional
+    public UserResponseDTO updatePassword(String userId, UserPasswordUpdateRequestDTO dto) {
 
-        if (newPassword == null || newPassword.trim().isEmpty()) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı: " + userId));
+
+        if (dto.getNewPassword() == null || dto.getNewPassword().trim().isEmpty()) {
             throw new IllegalArgumentException("Yeni password boş olamaz.");
         }
 
-        user.setPassword(newPassword);
-
-        return userRepository.save(user);
+        user.setPassword(dto.getNewPassword()); // TODO hash
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
     }
 
     @Override
-    public User setActiveStatus(String userId, boolean active) {
+    @Transactional
+    public UserResponseDTO setActiveStatus(String userId, boolean active) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User bulunamadı: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı: " + userId));
 
         user.setActive(active);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -131,25 +164,41 @@ public class UserServiceImpl implements UserService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen user bulunamadı: " + userId);
         }
-
         userRepository.deleteById(userId);
     }
 
-
-    //SIKINTI BURASI KARDESIM YA
     @Override
-    public Optional<User> authenticate(String email, String password) {
-        Optional<User> opt = userRepository.findByEmail(email);
-        if (opt.isEmpty()) return Optional.empty();
+    public AuthResponseDTO authenticate(AuthRequestDTO dto) {
+
+        if (dto.getEmail() == null || dto.getEmail().isBlank()) {
+            throw new IllegalArgumentException("email zorunlu.");
+        }
+        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
+            throw new IllegalArgumentException("password zorunlu.");
+        }
+
+        Optional<User> opt = userRepository.findByEmail(dto.getEmail());
+        if (opt.isEmpty()) {
+            AuthResponseDTO res = new AuthResponseDTO();
+            res.setAuthenticated(false);
+            res.setUser(null);
+            return res;
+        }
 
         User u = opt.get();
 
-        // aktif değilse geçmesin
-        if (!u.isActive()) return Optional.empty();
+        if (!u.isActive()) {
+            AuthResponseDTO res = new AuthResponseDTO();
+            res.setAuthenticated(false);
+            res.setUser(null);
+            return res;
+        }
 
-        // düz şifre kıyas
-        if (u.getPassword() == null) return Optional.empty();
+        boolean ok = (u.getPassword() != null) && u.getPassword().equals(dto.getPassword());
 
-        return u.getPassword().equals(password) ? Optional.of(u) : Optional.empty();
+        AuthResponseDTO res = new AuthResponseDTO();
+        res.setAuthenticated(ok);
+        res.setUser(ok ? userMapper.toResponse(u) : null);
+        return res;
     }
 }

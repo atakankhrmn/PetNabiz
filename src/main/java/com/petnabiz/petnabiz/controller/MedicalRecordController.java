@@ -1,12 +1,13 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.MedicalRecord;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicalrecord.MedicalRecordResponseDTO;
 import com.petnabiz.petnabiz.service.MedicalRecordService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/medical-records")
@@ -18,80 +19,41 @@ public class MedicalRecordController {
         this.medicalRecordService = medicalRecordService;
     }
 
-    /**
-     * 1) Tüm medical record'ları getir
-     * GET /api/medical-records
-     */
     @GetMapping
-    public ResponseEntity<List<MedicalRecord>> getAllMedicalRecords() {
+    public ResponseEntity<List<MedicalRecordResponseDTO>> getAllMedicalRecords() {
         return ResponseEntity.ok(medicalRecordService.getAllMedicalRecords());
     }
 
-    /**
-     * 2) ID'ye göre medical record getir
-     * GET /api/medical-records/{recordId}
-     */
     @GetMapping("/{recordId}")
-    public ResponseEntity<MedicalRecord> getMedicalRecordById(@PathVariable String recordId) {
-        Optional<MedicalRecord> recordOpt = medicalRecordService.getMedicalRecordById(recordId);
-        return recordOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<MedicalRecordResponseDTO> getMedicalRecordById(@PathVariable String recordId) {
+        return ResponseEntity.ok(medicalRecordService.getMedicalRecordById(recordId));
     }
 
-    /**
-     * 3) Pet ID'ye göre medical record'ları getir
-     * GET /api/medical-records/pet/{petId}
-     */
     @GetMapping("/pet/{petId}")
-    public ResponseEntity<List<MedicalRecord>> getMedicalRecordsByPetId(@PathVariable String petId) {
+    public ResponseEntity<List<MedicalRecordResponseDTO>> getMedicalRecordsByPetId(@PathVariable String petId) {
         return ResponseEntity.ok(medicalRecordService.getMedicalRecordsByPetId(petId));
     }
 
-    /**
-     * 4) Vet ID'ye göre medical record'ları getir (istersen)
-     * GET /api/medical-records/vet/{vetId}
-     */
     @GetMapping("/vet/{vetId}")
-    public ResponseEntity<List<MedicalRecord>> getMedicalRecordsByVetId(@PathVariable String vetId) {
+    public ResponseEntity<List<MedicalRecordResponseDTO>> getMedicalRecordsByVetId(@PathVariable String vetId) {
         return ResponseEntity.ok(medicalRecordService.getMedicalRecordsByVeterinaryId(vetId));
     }
 
-    /**
-     * 5) Yeni medical record oluştur
-     * POST /api/medical-records
-     *
-     * Body örneği:
-     * {
-     *   "pet": { "petId": "P001" },
-     *   "veterinary": { "vetId": "V001" },
-     *   "diagnosis": "Kronik gastrit",
-     *   "treatment": "Özel diyet + ilaç",
-     *   "recordDate": "2025-02-10"
-     * }
-     */
     @PostMapping
-    public ResponseEntity<MedicalRecord> createMedicalRecord(@RequestBody MedicalRecord medicalRecord) {
-        MedicalRecord created = medicalRecordService.createMedicalRecord(medicalRecord);
-        return ResponseEntity.ok(created);
-    }
-
-    /**
-     * 6) Medical record güncelle
-     * PUT /api/medical-records/{recordId}
-     */
-    @PutMapping("/{recordId}")
-    public ResponseEntity<MedicalRecord> updateMedicalRecord(
-            @PathVariable String recordId,
-            @RequestBody MedicalRecord updatedRecord
+    public ResponseEntity<MedicalRecordResponseDTO> createMedicalRecord(
+            @RequestBody MedicalRecordCreateRequestDTO dto
     ) {
-        MedicalRecord updated = medicalRecordService.updateMedicalRecord(recordId, updatedRecord);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(medicalRecordService.createMedicalRecord(dto));
     }
 
-    /**
-     * 7) Medical record sil
-     * DELETE /api/medical-records/{recordId}
-     */
+    @PutMapping("/{recordId}")
+    public ResponseEntity<MedicalRecordResponseDTO> updateMedicalRecord(
+            @PathVariable String recordId,
+            @RequestBody MedicalRecordUpdateRequestDTO dto
+    ) {
+        return ResponseEntity.ok(medicalRecordService.updateMedicalRecord(recordId, dto));
+    }
+
     @DeleteMapping("/{recordId}")
     public ResponseEntity<Void> deleteMedicalRecord(@PathVariable String recordId) {
         medicalRecordService.deleteMedicalRecord(recordId);

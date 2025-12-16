@@ -1,6 +1,9 @@
 package com.petnabiz.petnabiz.controller;
 
+import com.petnabiz.petnabiz.dto.request.user.AuthRequestDTO;
+import com.petnabiz.petnabiz.dto.response.user.AuthResponseDTO;
 import com.petnabiz.petnabiz.service.UserService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,14 +17,16 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestParam String email, @RequestParam String password) {
-        return userService.authenticate(email, password)
-                .map(u -> "OK " + u.getRole())   // istersen userId döndür
-                .orElse("FAIL");
+    public ResponseEntity<AuthResponseDTO> login(@RequestBody AuthRequestDTO req) {
+        AuthResponseDTO res = userService.authenticate(req);
+
+        return res.isAuthenticated()
+                ? ResponseEntity.ok(res)
+                : ResponseEntity.status(401).body(res);
     }
 
     @GetMapping("/ping")
-    public String ping() { return "OK"; }
-
+    public String ping() {
+        return "OK";
+    }
 }
-

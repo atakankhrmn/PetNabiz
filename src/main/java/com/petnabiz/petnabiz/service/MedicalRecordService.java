@@ -1,36 +1,29 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.MedicalRecord;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicalrecord.MedicalRecordResponseDTO;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 public interface MedicalRecordService {
 
-    // Tüm kayıtlar
-    List<MedicalRecord> getAllMedicalRecords();
+    List<MedicalRecordResponseDTO> getAllMedicalRecords();
 
-    // ID ile kayıt
-    Optional<MedicalRecord> getMedicalRecordById(String recordId);
+    MedicalRecordResponseDTO getMedicalRecordById(String recordId);
 
-    // Pet bazlı kayıtlar
-    List<MedicalRecord> getMedicalRecordsByPetId(String petId);
+    List<MedicalRecordResponseDTO> getMedicalRecordsByPetId(String petId);
 
-    // Vet bazlı kayıtlar
-    List<MedicalRecord> getMedicalRecordsByVeterinaryId(String vetId);
+    List<MedicalRecordResponseDTO> getMedicalRecordsByVeterinaryId(String vetId);
 
-    // Tarih bazlı
-    List<MedicalRecord> getMedicalRecordsByDate(LocalDate date);
+    List<MedicalRecordResponseDTO> getMedicalRecordsByDate(LocalDate date);
 
-    List<MedicalRecord> getMedicalRecordsByDateRange(LocalDate startDate, LocalDate endDate);
+    List<MedicalRecordResponseDTO> getMedicalRecordsByDateRange(LocalDate startDate, LocalDate endDate);
 
-    // Yeni kayıt oluştur
-    MedicalRecord createMedicalRecord(MedicalRecord record);
+    MedicalRecordResponseDTO createMedicalRecord(MedicalRecordCreateRequestDTO dto);
 
-    // Kayıt güncelle
-    MedicalRecord updateMedicalRecord(String recordId, MedicalRecord updatedRecord);
+    MedicalRecordResponseDTO updateMedicalRecord(String recordId, MedicalRecordUpdateRequestDTO dto);
 
-    // Kayıt sil
     void deleteMedicalRecord(String recordId);
 }

@@ -1,5 +1,9 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicalrecord.MedicalRecordResponseDTO;
+import com.petnabiz.petnabiz.mapper.MedicalRecordMapper;
 import com.petnabiz.petnabiz.model.MedicalRecord;
 import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.model.Veterinary;
@@ -7,11 +11,12 @@ import com.petnabiz.petnabiz.repository.MedicalRecordRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.MedicalRecordService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class MedicalRecordServiceImpl implements MedicalRecordService {
@@ -19,115 +24,124 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final MedicalRecordRepository medicalRecordRepository;
     private final PetRepository petRepository;
     private final VeterinaryRepository veterinaryRepository;
+    private final MedicalRecordMapper medicalRecordMapper;
 
     public MedicalRecordServiceImpl(MedicalRecordRepository medicalRecordRepository,
                                     PetRepository petRepository,
-                                    VeterinaryRepository veterinaryRepository) {
+                                    VeterinaryRepository veterinaryRepository,
+                                    MedicalRecordMapper medicalRecordMapper) {
         this.medicalRecordRepository = medicalRecordRepository;
         this.petRepository = petRepository;
         this.veterinaryRepository = veterinaryRepository;
+        this.medicalRecordMapper = medicalRecordMapper;
     }
 
     @Override
-    public List<MedicalRecord> getAllMedicalRecords() {
-        return medicalRecordRepository.findAll();
+    public List<MedicalRecordResponseDTO> getAllMedicalRecords() {
+        return medicalRecordRepository.findAll()
+                .stream()
+                .map(medicalRecordMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<MedicalRecord> getMedicalRecordById(String recordId) {
-        return medicalRecordRepository.findByRecordId(recordId);
-        // veya: return medicalRecordRepository.findById(recordId);
+    public MedicalRecordResponseDTO getMedicalRecordById(String recordId) {
+        MedicalRecord r = medicalRecordRepository.findByRecordId(recordId)
+                .orElseThrow(() -> new EntityNotFoundException("MedicalRecord bulunamadı: " + recordId));
+        return medicalRecordMapper.toResponse(r);
     }
 
     @Override
-    public List<MedicalRecord> getMedicalRecordsByPetId(String petId) {
-        return medicalRecordRepository.findByPet_PetId(petId);
+    public List<MedicalRecordResponseDTO> getMedicalRecordsByPetId(String petId) {
+        return medicalRecordRepository.findByPet_PetId(petId)
+                .stream()
+                .map(medicalRecordMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<MedicalRecord> getMedicalRecordsByVeterinaryId(String vetId) {
-        return medicalRecordRepository.findByVeterinary_VetId(vetId);
+    public List<MedicalRecordResponseDTO> getMedicalRecordsByVeterinaryId(String vetId) {
+        return medicalRecordRepository.findByVeterinary_VetId(vetId)
+                .stream()
+                .map(medicalRecordMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<MedicalRecord> getMedicalRecordsByDate(LocalDate date) {
-        return medicalRecordRepository.findByDate(date);
+    public List<MedicalRecordResponseDTO> getMedicalRecordsByDate(LocalDate date) {
+        return medicalRecordRepository.findByDate(date)
+                .stream()
+                .map(medicalRecordMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<MedicalRecord> getMedicalRecordsByDateRange(LocalDate startDate, LocalDate endDate) {
-        return medicalRecordRepository.findByDateBetween(startDate, endDate);
+    public List<MedicalRecordResponseDTO> getMedicalRecordsByDateRange(LocalDate startDate, LocalDate endDate) {
+        return medicalRecordRepository.findByDateBetween(startDate, endDate)
+                .stream()
+                .map(medicalRecordMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public MedicalRecord createMedicalRecord(MedicalRecord record) {
-        /*
-         * Beklenen:
-         *  - record.getPet().getPetId() dolu
-         *  - record.getVeterinary().getVetId() dolu
-         *  - record.getDate() dolu
-         */
+    @Transactional
+    public MedicalRecordResponseDTO createMedicalRecord(MedicalRecordCreateRequestDTO dto) {
 
-        if (record.getPet() == null || record.getPet().getPetId() == null) {
-            throw new IllegalArgumentException("MedicalRecord için pet bilgisi zorunlu.");
+        if (dto.getPetId() == null || dto.getPetId().isBlank()) {
+            throw new IllegalArgumentException("MedicalRecord için petId zorunlu.");
         }
-        if (record.getVeterinary() == null || record.getVeterinary().getVetId() == null) {
-            throw new IllegalArgumentException("MedicalRecord için veterinary bilgisi zorunlu.");
+        if (dto.getVetId() == null || dto.getVetId().isBlank()) {
+            throw new IllegalArgumentException("MedicalRecord için vetId zorunlu.");
         }
-        if (record.getDate() == null) {
+        if (dto.getDate() == null) {
             throw new IllegalArgumentException("MedicalRecord için date zorunlu.");
         }
 
-        String petId = record.getPet().getPetId();
-        String vetId = record.getVeterinary().getVetId();
+        Pet pet = petRepository.findByPetId(dto.getPetId())
+                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + dto.getPetId()));
 
-        Pet pet = petRepository.findByPetId(petId)
-                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
+        Veterinary vet = veterinaryRepository.findByVetId(dto.getVetId())
+                .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + dto.getVetId()));
 
-        Veterinary vet = veterinaryRepository.findByVetId(vetId)
-                .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + vetId));
+        MedicalRecord record = new MedicalRecord();
 
-        // Managed entity'ler set ediliyor
+        if (dto.getRecordId() != null && !dto.getRecordId().isBlank()) {
+            record.setRecordId(dto.getRecordId());
+        }
+
+        record.setDescription(dto.getDescription());
+        record.setDate(dto.getDate());
         record.setPet(pet);
         record.setVeterinary(vet);
 
-        return medicalRecordRepository.save(record);
+        MedicalRecord saved = medicalRecordRepository.save(record);
+        return medicalRecordMapper.toResponse(saved);
     }
 
     @Override
-    public MedicalRecord updateMedicalRecord(String recordId, MedicalRecord updatedRecord) {
+    @Transactional
+    public MedicalRecordResponseDTO updateMedicalRecord(String recordId, MedicalRecordUpdateRequestDTO dto) {
+
         MedicalRecord existing = medicalRecordRepository.findByRecordId(recordId)
-                .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + recordId));
+                .orElseThrow(() -> new EntityNotFoundException("MedicalRecord bulunamadı: " + recordId));
 
-        // Tarih
-        if (updatedRecord.getDate() != null) {
-            existing.setDate(updatedRecord.getDate());
-        }
+        if (dto.getDate() != null) existing.setDate(dto.getDate());
+        if (dto.getDescription() != null) existing.setDescription(dto.getDescription());
 
-        // Açıklama
-        if (updatedRecord.getDescription() != null) {
-            existing.setDescription(updatedRecord.getDescription());
-        }
-
-        // Pet değişimi
-        if (updatedRecord.getPet() != null && updatedRecord.getPet().getPetId() != null) {
-            String newPetId = updatedRecord.getPet().getPetId();
-            Pet newPet = petRepository.findByPetId(newPetId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni pet bulunamadı: " + newPetId));
+        if (dto.getPetId() != null) {
+            Pet newPet = petRepository.findByPetId(dto.getPetId())
+                    .orElseThrow(() -> new IllegalArgumentException("Yeni pet bulunamadı: " + dto.getPetId()));
             existing.setPet(newPet);
         }
 
-        // Vet değişimi
-        if (updatedRecord.getVeterinary() != null &&
-                updatedRecord.getVeterinary().getVetId() != null) {
-
-            String newVetId = updatedRecord.getVeterinary().getVetId();
-            Veterinary newVet = veterinaryRepository.findByVetId(newVetId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni veterinary bulunamadı: " + newVetId));
+        if (dto.getVetId() != null) {
+            Veterinary newVet = veterinaryRepository.findByVetId(dto.getVetId())
+                    .orElseThrow(() -> new IllegalArgumentException("Yeni veterinary bulunamadı: " + dto.getVetId()));
             existing.setVeterinary(newVet);
         }
 
-        return medicalRecordRepository.save(existing);
+        MedicalRecord saved = medicalRecordRepository.save(existing);
+        return medicalRecordMapper.toResponse(saved);
     }
 
     @Override
@@ -136,7 +150,6 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen MedicalRecord bulunamadı: " + recordId);
         }
-
         medicalRecordRepository.deleteById(recordId);
     }
 }

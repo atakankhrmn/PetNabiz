@@ -1,9 +1,15 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.medicine.MedicineCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicine.MedicineUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicine.MedicineResponseDTO;
+import com.petnabiz.petnabiz.mapper.MedicineMapper;
 import com.petnabiz.petnabiz.model.Medicine;
 import com.petnabiz.petnabiz.repository.MedicineRepository;
 import com.petnabiz.petnabiz.service.MedicineService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,88 +18,98 @@ import java.util.Optional;
 public class MedicineServiceImpl implements MedicineService {
 
     private final MedicineRepository medicineRepository;
+    private final MedicineMapper medicineMapper;
 
-    public MedicineServiceImpl(MedicineRepository medicineRepository) {
+    public MedicineServiceImpl(MedicineRepository medicineRepository,
+                               MedicineMapper medicineMapper) {
         this.medicineRepository = medicineRepository;
+        this.medicineMapper = medicineMapper;
     }
 
     @Override
-    public List<Medicine> getAllMedicines() {
-        return medicineRepository.findAll();
+    public List<MedicineResponseDTO> getAllMedicines() {
+        return medicineRepository.findAll()
+                .stream()
+                .map(medicineMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<Medicine> getMedicineById(String medicineId) {
-        return medicineRepository.findByMedicineId(medicineId);
-        // veya: return medicineRepository.findById(medicineId);
+    public MedicineResponseDTO getMedicineById(String medicineId) {
+        Medicine m = medicineRepository.findByMedicineId(medicineId)
+                .orElseThrow(() -> new EntityNotFoundException("Medicine bulunamadı: " + medicineId));
+        return medicineMapper.toResponse(m);
     }
 
     @Override
-    public List<Medicine> searchByName(String namePart) {
-        return medicineRepository.findByNameContainingIgnoreCase(namePart);
+    public List<MedicineResponseDTO> searchByName(String namePart) {
+        return medicineRepository.findByNameContainingIgnoreCase(namePart)
+                .stream()
+                .map(medicineMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Medicine> getMedicinesByType(String type) {
-        return medicineRepository.findByTypeIgnoreCase(type);
+    public List<MedicineResponseDTO> getMedicinesByType(String type) {
+        return medicineRepository.findByTypeIgnoreCase(type)
+                .stream()
+                .map(medicineMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Medicine createMedicine(Medicine medicine) {
-        /*
-         * Kontroller:
-         *  - name boş olmamalı
-         *  - type boş olmamalı
-         *  - aynı isimde ilaç varsa engellemek isteyebilirsin
-         */
+    @Transactional
+    public MedicineResponseDTO createMedicine(MedicineCreateRequestDTO dto) {
 
-        if (medicine.getName() == null || medicine.getName().trim().isEmpty()) {
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Medicine name boş olamaz.");
         }
-
-        if (medicine.getType() == null || medicine.getType().trim().isEmpty()) {
+        if (dto.getType() == null || dto.getType().trim().isEmpty()) {
             throw new IllegalArgumentException("Medicine type boş olamaz.");
         }
 
-        // Aynı isimde bir ilaç zaten var mı? (İstersen kaldırabilirsin)
-        Optional<Medicine> existingByName = medicineRepository.findByName(medicine.getName());
+        Optional<Medicine> existingByName = medicineRepository.findByName(dto.getName());
         if (existingByName.isPresent()) {
-            throw new IllegalStateException("Bu isimde bir medicine zaten kayıtlı: " + medicine.getName());
+            throw new IllegalStateException("Bu isimde bir medicine zaten kayıtlı: " + dto.getName());
         }
 
-        // ID çakışması kontrolü (ID'yi sen veriyorsan)
-        if (medicine.getMedicineId() != null &&
-                medicineRepository.existsByMedicineId(medicine.getMedicineId())) {
-            throw new IllegalStateException("Bu ID ile bir medicine zaten kayıtlı: " + medicine.getMedicineId());
+        if (dto.getMedicineId() != null && !dto.getMedicineId().isBlank()
+                && medicineRepository.existsByMedicineId(dto.getMedicineId())) {
+            throw new IllegalStateException("Bu ID ile bir medicine zaten kayıtlı: " + dto.getMedicineId());
         }
 
-        return medicineRepository.save(medicine);
+        Medicine m = new Medicine();
+        if (dto.getMedicineId() != null && !dto.getMedicineId().isBlank()) {
+            m.setMedicineId(dto.getMedicineId());
+        }
+        m.setName(dto.getName());
+        m.setType(dto.getType());
+
+        Medicine saved = medicineRepository.save(m);
+        return medicineMapper.toResponse(saved);
     }
 
     @Override
-    public Medicine updateMedicine(String medicineId, Medicine updatedMedicine) {
+    @Transactional
+    public MedicineResponseDTO updateMedicine(String medicineId, MedicineUpdateRequestDTO dto) {
+
         Medicine existing = medicineRepository.findByMedicineId(medicineId)
-                .orElseThrow(() -> new IllegalArgumentException("Medicine bulunamadı: " + medicineId));
+                .orElseThrow(() -> new EntityNotFoundException("Medicine bulunamadı: " + medicineId));
 
-        // İsim güncelle
-        if (updatedMedicine.getName() != null && !updatedMedicine.getName().trim().isEmpty()) {
-
-            // Eğer ismi değiştiriyorsan ve yeni isim başka bir ilaca aitse engelle
-            Optional<Medicine> sameName = medicineRepository.findByName(updatedMedicine.getName());
+        if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
+            Optional<Medicine> sameName = medicineRepository.findByName(dto.getName());
             if (sameName.isPresent() && !sameName.get().getMedicineId().equals(medicineId)) {
-                throw new IllegalStateException("Bu isim başka bir medicine için zaten kullanılıyor: "
-                        + updatedMedicine.getName());
+                throw new IllegalStateException("Bu isim başka bir medicine için zaten kullanılıyor: " + dto.getName());
             }
-
-            existing.setName(updatedMedicine.getName());
+            existing.setName(dto.getName());
         }
 
-        // Type güncelle
-        if (updatedMedicine.getType() != null && !updatedMedicine.getType().trim().isEmpty()) {
-            existing.setType(updatedMedicine.getType());
+        if (dto.getType() != null && !dto.getType().trim().isEmpty()) {
+            existing.setType(dto.getType());
         }
 
-        return medicineRepository.save(existing);
+        Medicine saved = medicineRepository.save(existing);
+        return medicineMapper.toResponse(saved);
     }
 
     @Override
@@ -102,7 +118,6 @@ public class MedicineServiceImpl implements MedicineService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen medicine bulunamadı: " + medicineId);
         }
-
         medicineRepository.deleteById(medicineId);
     }
 }

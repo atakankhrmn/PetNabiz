@@ -1,31 +1,24 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Medicine;
+import com.petnabiz.petnabiz.dto.request.medicine.MedicineCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicine.MedicineUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicine.MedicineResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface MedicineService {
 
-    // Tüm ilaçları listele
-    List<Medicine> getAllMedicines();
+    List<MedicineResponseDTO> getAllMedicines();
 
-    // ID ile bul
-    Optional<Medicine> getMedicineById(String medicineId);
+    MedicineResponseDTO getMedicineById(String medicineId);
 
-    // İsim ile arama
-    List<Medicine> searchByName(String namePart);
+    List<MedicineResponseDTO> searchByName(String namePart);
 
-    // Type ile filtre (tablet, syrup vb.)
-    List<Medicine> getMedicinesByType(String type);
+    List<MedicineResponseDTO> getMedicinesByType(String type);
 
-    // Yeni medicine oluştur
-    Medicine createMedicine(Medicine medicine);
+    MedicineResponseDTO createMedicine(MedicineCreateRequestDTO dto);
 
-    // Medicine güncelle
-    Medicine updateMedicine(String medicineId, Medicine updatedMedicine);
+    MedicineResponseDTO updateMedicine(String medicineId, MedicineUpdateRequestDTO dto);
 
-    // Medicine sil
     void deleteMedicine(String medicineId);
-
 }

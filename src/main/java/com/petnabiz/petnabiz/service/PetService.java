@@ -1,41 +1,26 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Pet;
+import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface PetService {
 
-    // Tüm pet'leri listele
-    List<Pet> getAllPets();
+    List<PetResponseDTO> getAllPets();
 
-    // ID ile pet bul
-    Optional<Pet> getPetById(String petId);
+    PetResponseDTO getPetById(String petId);
 
-    // Owner'a göre pet listesi
-    List<Pet> getPetsByOwnerId(String ownerId);
+    List<PetResponseDTO> getPetsByOwnerId(String ownerId);
 
-    // İsim arama
-    List<Pet> searchPetsByName(String namePart);
+    List<PetResponseDTO> searchPetsByName(String namePart);
 
-    // Tür/ırk filtre
-    List<Pet> getPetsBySpecies(String species);
+    List<PetResponseDTO> getPetsBySpecies(String species);
 
-    /*
-    List<Pet> getPetsBySpeciesAndBreed(String species, String breed);
-    */
+    PetResponseDTO createPet(PetCreateRequestDTO dto);
 
-    // Yeni pet oluştur
-    Pet createPet(Pet pet);
+    PetResponseDTO updatePet(String petId, PetUpdateRequestDTO dto);
 
-    // Var olan pet'i güncelle
-    Pet updatePet(String petId, Pet updatedPet);
-
-    // Pet sil
     void deletePet(String petId);
-
-    /*
-    List<Pet> getPetsByClinicId(String clinicId);
-     */
 }

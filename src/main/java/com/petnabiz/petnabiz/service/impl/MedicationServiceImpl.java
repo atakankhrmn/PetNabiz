@@ -1,5 +1,10 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.medication.MedicationCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medication.MedicationUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medication.MedicationResponseDTO;
+import com.petnabiz.petnabiz.mapper.MedicationMapper;
+import com.petnabiz.petnabiz.model.MedicalRecord;
 import com.petnabiz.petnabiz.model.Medication;
 import com.petnabiz.petnabiz.model.Medicine;
 import com.petnabiz.petnabiz.repository.MedicalRecordRepository;
@@ -7,11 +12,12 @@ import com.petnabiz.petnabiz.repository.MedicationRepository;
 import com.petnabiz.petnabiz.repository.MedicineRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.service.MedicationService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class MedicationServiceImpl implements MedicationService {
@@ -20,118 +26,166 @@ public class MedicationServiceImpl implements MedicationService {
     private final MedicineRepository medicineRepository;
     private final MedicalRecordRepository medicalRecordRepository;
     private final PetRepository petRepository;
-
+    private final MedicationMapper medicationMapper;
 
     public MedicationServiceImpl(MedicationRepository medicationRepository,
-                                 MedicineRepository medicineRepository, MedicalRecordRepository medicalRecordRepository, PetRepository petRepository) {
+                                 MedicineRepository medicineRepository,
+                                 MedicalRecordRepository medicalRecordRepository,
+                                 PetRepository petRepository,
+                                 MedicationMapper medicationMapper) {
         this.medicationRepository = medicationRepository;
         this.medicineRepository = medicineRepository;
         this.medicalRecordRepository = medicalRecordRepository;
         this.petRepository = petRepository;
+        this.medicationMapper = medicationMapper;
     }
 
     @Override
-    public List<Medication> getAllMedications() {
-        return medicationRepository.findAll();
+    public List<MedicationResponseDTO> getAllMedications() {
+        return medicationRepository.findAll().stream()
+                .map(medicationMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<Medication> getMedicationById(String medicationId) {
-        return medicationRepository.findByMedicationId(medicationId);
-        // veya: return medicationRepository.findById(medicationId);
+    public MedicationResponseDTO getMedicationById(String medicationId) {
+        Medication m = medicationRepository.findByMedicationId(medicationId)
+                .orElseThrow(() -> new EntityNotFoundException("Medication bulunamadı: " + medicationId));
+        return medicationMapper.toResponse(m);
     }
 
     @Override
-    public List<Medication> getMedicationsByMedicineId(String medicineId) {
-        return medicationRepository.findByMedicine_MedicineId(medicineId);
+    public List<MedicationResponseDTO> getMedicationsByMedicineId(String medicineId) {
+        return medicationRepository.findByMedicine_MedicineId(medicineId).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Medication> searchByMedicineName(String namePart) {
-        return medicationRepository.findByMedicine_NameContainingIgnoreCase(namePart);
+    public List<MedicationResponseDTO> searchByMedicineName(String namePart) {
+        return medicationRepository.findByMedicine_NameContainingIgnoreCase(namePart).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Medication> getMedicationsByMedicineType(String type) {
-        return medicationRepository.findByMedicine_TypeIgnoreCase(type);
+    public List<MedicationResponseDTO> getMedicationsByMedicineType(String type) {
+        return medicationRepository.findByMedicine_TypeIgnoreCase(type).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Medication> getActiveMedicationsOn(LocalDate date) {
-        // start <= date AND end >= date
-        return medicationRepository.findByStartLessThanEqualAndEndGreaterThanEqual(date, date);
+    public List<MedicationResponseDTO> getActiveMedicationsOn(LocalDate date) {
+        return medicationRepository.findByStartLessThanEqualAndEndGreaterThanEqual(date, date).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Medication> getMedicationsBetween(LocalDate start, LocalDate end) {
-        // start >= given start AND end <= given end
-        return medicationRepository.findByStartGreaterThanEqualAndEndLessThanEqual(start, end);
+    public List<MedicationResponseDTO> getMedicationsBetween(LocalDate start, LocalDate end) {
+        return medicationRepository.findByStartGreaterThanEqualAndEndLessThanEqual(start, end).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Medication createMedication(Medication medication) {
-        /*
-         * Beklediğimiz:
-         *  - medication.getMedicine().getMedicineId() dolu
-         *  - start ve end null değil
-         */
+    public List<MedicationResponseDTO> getMedicationsByMedicalRecordId(String recordId) {
+        medicalRecordRepository.findByRecordId(recordId)
+                .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + recordId));
 
-        if (medication.getMedicine() == null || medication.getMedicine().getMedicineId() == null) {
-            throw new IllegalArgumentException("Medication için medicine bilgisi zorunlu.");
+        return medicationRepository.findByMedicalRecord_RecordId(recordId).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public List<MedicationResponseDTO> getMedicationsByPetId(String petId) {
+        petRepository.findByPetId(petId)
+                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
+
+        return medicationRepository.findByMedicalRecord_Pet_PetId(petId).stream()
+                .map(medicationMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public MedicationResponseDTO createMedication(MedicationCreateRequestDTO dto) {
+
+        if (dto.getMedicineId() == null || dto.getMedicineId().isBlank()) {
+            throw new IllegalArgumentException("Medication için medicineId zorunlu.");
         }
-        if (medication.getStart() == null || medication.getEnd() == null) {
-            throw new IllegalArgumentException("Medication için start ve end tarihleri zorunludur.");
+        if (dto.getStart() == null || dto.getEnd() == null) {
+            throw new IllegalArgumentException("Medication için start ve end zorunlu.");
         }
-        if (medication.getEnd().isBefore(medication.getStart())) {
+        if (dto.getEnd().isBefore(dto.getStart())) {
             throw new IllegalArgumentException("End tarihi start tarihinden önce olamaz.");
         }
 
-        String medicineId = medication.getMedicine().getMedicineId();
+        Medicine medicine = medicineRepository.findByMedicineId(dto.getMedicineId())
+                .orElseThrow(() -> new IllegalArgumentException("Medicine bulunamadı: " + dto.getMedicineId()));
 
-        Medicine medicine = medicineRepository.findByMedicineId(medicineId)
-                .orElseThrow(() -> new IllegalArgumentException("Medicine bulunamadı: " + medicineId));
+        MedicalRecord record = null;
+        if (dto.getRecordId() != null && !dto.getRecordId().isBlank()) {
+            record = medicalRecordRepository.findByRecordId(dto.getRecordId())
+                    .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + dto.getRecordId()));
+        }
 
-        // Managed entity set et
-        medication.setMedicine(medicine);
+        Medication m = new Medication();
 
-        return medicationRepository.save(medication);
+        if (dto.getMedicationId() != null && !dto.getMedicationId().isBlank()) {
+            m.setMedicationId(dto.getMedicationId());
+        }
+
+        m.setInstructions(dto.getInstructions());
+        m.setStart(dto.getStart());
+        m.setEnd(dto.getEnd());
+        m.setMedicine(medicine);
+
+        // ⚠️ bunun çalışması için Medication entity’de setMedicalRecord olmalı
+        if (record != null) {
+            m.setMedicalRecord(record);
+        }
+
+        Medication saved = medicationRepository.save(m);
+        return medicationMapper.toResponse(saved);
     }
 
     @Override
-    public Medication updateMedication(String medicationId, Medication updatedMedication) {
+    @Transactional
+    public MedicationResponseDTO updateMedication(String medicationId, MedicationUpdateRequestDTO dto) {
+
         Medication existing = medicationRepository.findByMedicationId(medicationId)
-                .orElseThrow(() -> new IllegalArgumentException("Medication bulunamadı: " + medicationId));
+                .orElseThrow(() -> new EntityNotFoundException("Medication bulunamadı: " + medicationId));
 
-        // Instructions güncelle
-        if (updatedMedication.getInstructions() != null) {
-            existing.setInstructions(updatedMedication.getInstructions());
-        }
+        if (dto.getInstructions() != null) existing.setInstructions(dto.getInstructions());
+        if (dto.getStart() != null) existing.setStart(dto.getStart());
+        if (dto.getEnd() != null) existing.setEnd(dto.getEnd());
 
-        // Tarih güncelle
-        if (updatedMedication.getStart() != null) {
-            existing.setStart(updatedMedication.getStart());
-        }
-        if (updatedMedication.getEnd() != null) {
-            existing.setEnd(updatedMedication.getEnd());
-        }
-
-        // Tarih tutarlılığı (varsa)
         if (existing.getStart() != null && existing.getEnd() != null &&
                 existing.getEnd().isBefore(existing.getStart())) {
             throw new IllegalArgumentException("End tarihi start tarihinden önce olamaz.");
         }
 
-        // Medicine değişimi isteniyorsa
-        if (updatedMedication.getMedicine() != null &&
-                updatedMedication.getMedicine().getMedicineId() != null) {
-
-            String newMedicineId = updatedMedication.getMedicine().getMedicineId();
-            Medicine newMedicine = medicineRepository.findByMedicineId(newMedicineId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni medicine bulunamadı: " + newMedicineId));
+        if (dto.getMedicineId() != null) {
+            Medicine newMedicine = medicineRepository.findByMedicineId(dto.getMedicineId())
+                    .orElseThrow(() -> new IllegalArgumentException("Medicine bulunamadı: " + dto.getMedicineId()));
             existing.setMedicine(newMedicine);
         }
 
-        return medicationRepository.save(existing);
+        if (dto.getRecordId() != null) {
+            if (dto.getRecordId().isBlank()) {
+                existing.setMedicalRecord(null);
+            } else {
+                MedicalRecord record = medicalRecordRepository.findByRecordId(dto.getRecordId())
+                        .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + dto.getRecordId()));
+                existing.setMedicalRecord(record);
+            }
+        }
+
+        Medication saved = medicationRepository.save(existing);
+        return medicationMapper.toResponse(saved);
     }
 
     @Override
@@ -140,28 +194,6 @@ public class MedicationServiceImpl implements MedicationService {
         if (!exists) {
             throw new IllegalArgumentException("Silinmek istenen medication bulunamadı: " + medicationId);
         }
-
         medicationRepository.deleteById(medicationId);
     }
-
-    @Override
-    public List<Medication> getMedicationsByMedicalRecordId(String recordId) {
-
-        // 1) MedicalRecord gerçekten var mı kontrol et
-        medicalRecordRepository.findByRecordId(recordId)
-                .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + recordId));
-
-        // 2) MedicalRecord'a bağlı tüm medication'ları döndür
-        return medicationRepository.findByMedicalRecord_RecordId(recordId);
-    }
-
-    // MedicationServiceImpl
-    @Override
-    public List<Medication> getMedicationsByPetId(String petId) {
-        petRepository.findByPetId(petId)
-                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
-
-        return medicationRepository.findByMedicalRecord_Pet_PetId(petId);
-    }
-
 }
