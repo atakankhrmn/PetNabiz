@@ -21,6 +21,13 @@ public class SecurityConfig {
                 // Auth endpoints (login/register vs) -> açık
                 .requestMatchers("/auth/**", "/api/auth/**").permitAll()
 
+                /**
+                 * CLINIC APPLICATIONS
+                 * - create (public): permitAll
+                 * - list/approve/reject (admin): ADMIN
+                 */
+                .requestMatchers("/api/clinic-applications/**").permitAll()
+
                 // AdminController -> sadece ADMIN (controller seviyesinde de var ama burada da kaba kural dursun)
                 .requestMatchers("/api/admins/**").hasRole("ADMIN")
 
@@ -79,7 +86,7 @@ public class SecurityConfig {
 
                 /**
                  * MEDICATIONS
-                 * Controller: GET by id/pet/record owner'a da (ownership check ile), write admin/clinic
+                 * Controller: GET by id/pet/record ownera da (ownership check ile), write admin/clinic
                  */
                 .requestMatchers("/api/medications/**").hasAnyRole("ADMIN", "CLINIC", "OWNER")
 

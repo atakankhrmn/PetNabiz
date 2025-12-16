@@ -4,6 +4,7 @@ import com.petnabiz.petnabiz.dto.request.clinic.ClinicCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.clinic.ClinicUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.clinic.ClinicResponseDTO;
 import com.petnabiz.petnabiz.dto.summary.VetSummaryDTO;
+import com.petnabiz.petnabiz.model.ClinicApplication;
 
 import java.util.List;
 
@@ -26,5 +27,7 @@ public interface ClinicService {
     List<VetSummaryDTO> getVeterinariesByClinic(String clinicId);
 
     boolean isClinicSelf(String clinicEmail, String clinicId);
+
+    public void createClinicFromApplication(ClinicApplication app);
 
 }
