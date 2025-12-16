@@ -22,7 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-@Service
+@Service("slotService") // SpEL için
 public class SlotServiceImpl implements SlotService {
 
     private final SlotRepository slotRepository;
@@ -46,6 +46,34 @@ public class SlotServiceImpl implements SlotService {
         this.appointmentMapper = appointmentMapper;
     }
 
+    // ----------------------------
+    // Security helpers
+    // ----------------------------
+    @Override
+    public boolean isClinicOwnerOfVet(String clinicEmail, String vetId) {
+        if (clinicEmail == null || clinicEmail.isBlank() || vetId == null || vetId.isBlank()) return false;
+
+        Veterinary vet = veterinaryRepository.findByVetId(vetId).orElse(null);
+        if (vet == null || vet.getClinic() == null || vet.getClinic().getUser() == null) return false;
+
+        String email = vet.getClinic().getUser().getEmail();
+        return email != null && clinicEmail.equalsIgnoreCase(email);
+    }
+
+    @Override
+    public boolean isPetOwnedBy(String ownerEmail, String petId) {
+        if (ownerEmail == null || ownerEmail.isBlank() || petId == null || petId.isBlank()) return false;
+
+        Pet pet = petRepository.findByPetId(petId).orElse(null);
+        if (pet == null || pet.getOwner() == null || pet.getOwner().getUser() == null) return false;
+
+        String email = pet.getOwner().getUser().getEmail();
+        return email != null && ownerEmail.equalsIgnoreCase(email);
+    }
+
+    // ----------------------------
+    // Business
+    // ----------------------------
     @Override
     @Transactional
     public void createDailySlots(String vetId, LocalDate date) {
@@ -71,7 +99,7 @@ public class SlotServiceImpl implements SlotService {
         try {
             slotRepository.saveAll(slots);
         } catch (DataIntegrityViolationException e) {
-            // unique(vet_id, date, time) -> aynı gün tekrar generate edilirse patlar, sessiz geçiyoruz
+            // unique(vet_id, date, time) -> tekrar generate edilirse patlar, sessiz geçiyoruz
         }
     }
 
@@ -88,21 +116,28 @@ public class SlotServiceImpl implements SlotService {
     @Transactional
     public AppointmentResponseDTO bookSlot(Long slotId, String petId) {
 
+        if (petId == null || petId.isBlank()) {
+            throw new IllegalArgumentException("petId zorunlu.");
+        }
+
+        // 1) Atomik book (race condition yok)
         int updated = slotRepository.bookSlot(slotId);
         if (updated == 0) {
             throw new IllegalStateException("Slot already booked (slotId=" + slotId + ")");
         }
 
+        // 2) Slot + Pet load
         Slot slot = slotRepository.findById(slotId)
                 .orElseThrow(() -> new EntityNotFoundException("Slot not found: " + slotId));
 
         Pet pet = petRepository.findByPetId(petId)
                 .orElseThrow(() -> new EntityNotFoundException("Pet not found: " + petId));
 
+        // 3) Appointment create
         Appointment appt = new Appointment();
         appt.setDate(slot.getDate());
         appt.setTime(slot.getTime());
-        appt.setStatus("Active"); // siz enum yapacaksan sonra değiştirirsiniz
+        appt.setStatus("Active");
         appt.setVeterinary(slot.getVeterinary());
         appt.setPet(pet);
 

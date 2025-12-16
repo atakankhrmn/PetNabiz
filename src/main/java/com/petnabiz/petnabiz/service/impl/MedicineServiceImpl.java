@@ -61,6 +61,10 @@ public class MedicineServiceImpl implements MedicineService {
     @Transactional
     public MedicineResponseDTO createMedicine(MedicineCreateRequestDTO dto) {
 
+        // ✅ PK string olduğu için medicineId zorunlu
+        if (dto.getMedicineId() == null || dto.getMedicineId().isBlank()) {
+            throw new IllegalArgumentException("medicineId zorunlu.");
+        }
         if (dto.getName() == null || dto.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Medicine name boş olamaz.");
         }
@@ -68,20 +72,17 @@ public class MedicineServiceImpl implements MedicineService {
             throw new IllegalArgumentException("Medicine type boş olamaz.");
         }
 
+        if (medicineRepository.existsByMedicineId(dto.getMedicineId())) {
+            throw new IllegalStateException("Bu ID ile medicine zaten kayıtlı: " + dto.getMedicineId());
+        }
+
         Optional<Medicine> existingByName = medicineRepository.findByName(dto.getName());
         if (existingByName.isPresent()) {
             throw new IllegalStateException("Bu isimde bir medicine zaten kayıtlı: " + dto.getName());
         }
 
-        if (dto.getMedicineId() != null && !dto.getMedicineId().isBlank()
-                && medicineRepository.existsByMedicineId(dto.getMedicineId())) {
-            throw new IllegalStateException("Bu ID ile bir medicine zaten kayıtlı: " + dto.getMedicineId());
-        }
-
         Medicine m = new Medicine();
-        if (dto.getMedicineId() != null && !dto.getMedicineId().isBlank()) {
-            m.setMedicineId(dto.getMedicineId());
-        }
+        m.setMedicineId(dto.getMedicineId());
         m.setName(dto.getName());
         m.setType(dto.getType());
 
@@ -113,11 +114,12 @@ public class MedicineServiceImpl implements MedicineService {
     }
 
     @Override
+    @Transactional
     public void deleteMedicine(String medicineId) {
-        boolean exists = medicineRepository.existsByMedicineId(medicineId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen medicine bulunamadı: " + medicineId);
-        }
-        medicineRepository.deleteById(medicineId);
+        // PK = medicineId olduğundan deleteById da çalışır ama yine de domain methodla gidelim
+        Medicine existing = medicineRepository.findByMedicineId(medicineId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen medicine bulunamadı: " + medicineId));
+
+        medicineRepository.delete(existing);
     }
 }

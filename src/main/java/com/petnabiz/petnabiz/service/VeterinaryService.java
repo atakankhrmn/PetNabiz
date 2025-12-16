@@ -14,17 +14,14 @@ public interface VeterinaryService {
 
     List<VeterinaryResponseDTO> getVeterinariesByClinicId(String clinicId);
 
-    List<VeterinaryResponseDTO> searchByFirstName(String firstNamePart);
-
-    List<VeterinaryResponseDTO> searchByLastName(String lastNamePart);
-
-    VeterinaryResponseDTO getByPhoneNumber(String phoneNumber);
-
-    List<VeterinaryResponseDTO> searchByCertificate(String certificatePart);
-
     VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto);
 
     VeterinaryResponseDTO updateVeterinary(String vetId, VeterinaryUpdateRequestDTO dto);
 
     void deleteVeterinary(String vetId);
+
+    // SpEL / security helpers
+    boolean isClinicOwner(String clinicEmail, String clinicId);
+
+    boolean isClinicOwnerOfVet(String clinicEmail, String vetId);
 }

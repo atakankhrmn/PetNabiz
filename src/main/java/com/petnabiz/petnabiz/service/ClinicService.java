@@ -24,4 +24,7 @@ public interface ClinicService {
     void deleteClinic(String clinicId);
 
     List<VetSummaryDTO> getVeterinariesByClinic(String clinicId);
+
+    boolean isClinicSelf(String clinicEmail, String clinicId);
+
 }

@@ -1,20 +1,23 @@
 package com.petnabiz.petnabiz.service.impl;
 
-import com.petnabiz.petnabiz.dto.request.user.*;
-import com.petnabiz.petnabiz.dto.response.user.AuthResponseDTO;
+import com.petnabiz.petnabiz.dto.request.user.UserCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.user.UserPasswordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.user.UserUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.user.UserResponseDTO;
 import com.petnabiz.petnabiz.mapper.UserMapper;
 import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.repository.UserRepository;
 import com.petnabiz.petnabiz.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
-@Service
+@Service("userService") // SpEL için
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -25,6 +28,46 @@ public class UserServiceImpl implements UserService {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
     }
+
+    private String currentEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalStateException("Authentication yok.");
+        return auth.getName(); // email
+    }
+
+    @Override
+    public boolean isSelf(String userId, String email) {
+        if (userId == null || userId.isBlank() || email == null || email.isBlank()) return false;
+        User u = userRepository.findByUserId(userId).orElse(null);
+        if (u == null || u.getEmail() == null) return false;
+        return email.equalsIgnoreCase(u.getEmail());
+    }
+
+    @Override
+    public UserResponseDTO getMe() {
+        String email = currentEmail();
+        User u = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı (me): " + email));
+        return userMapper.toResponse(u);
+    }
+
+    @Override
+    @Transactional
+    public UserResponseDTO updateMyPassword(UserPasswordUpdateRequestDTO dto) {
+        String email = currentEmail();
+        User u = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı (me): " + email));
+
+        if (dto.getNewPassword() == null || dto.getNewPassword().trim().isEmpty()) {
+            throw new IllegalArgumentException("Yeni password boş olamaz.");
+        }
+
+        u.setPassword(dto.getNewPassword()); // TODO hash
+        User saved = userRepository.save(u);
+        return userMapper.toResponse(saved);
+    }
+
+    // --------- ADMIN OPS ---------
 
     @Override
     public List<UserResponseDTO> getAllUsers() {
@@ -122,7 +165,6 @@ public class UserServiceImpl implements UserService {
             existing.setRole(dto.getRole());
         }
 
-        // en büyük bug: eskiden updatedUser.isActive() ile false basıyordun.
         if (dto.getActive() != null) {
             existing.setActive(dto.getActive());
         }
@@ -159,46 +201,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void deleteUser(String userId) {
-        boolean exists = userRepository.existsByUserId(userId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen user bulunamadı: " + userId);
-        }
-        userRepository.deleteById(userId);
-    }
-
-    @Override
-    public AuthResponseDTO authenticate(AuthRequestDTO dto) {
-
-        if (dto.getEmail() == null || dto.getEmail().isBlank()) {
-            throw new IllegalArgumentException("email zorunlu.");
-        }
-        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
-            throw new IllegalArgumentException("password zorunlu.");
-        }
-
-        Optional<User> opt = userRepository.findByEmail(dto.getEmail());
-        if (opt.isEmpty()) {
-            AuthResponseDTO res = new AuthResponseDTO();
-            res.setAuthenticated(false);
-            res.setUser(null);
-            return res;
-        }
-
-        User u = opt.get();
-
-        if (!u.isActive()) {
-            AuthResponseDTO res = new AuthResponseDTO();
-            res.setAuthenticated(false);
-            res.setUser(null);
-            return res;
-        }
-
-        boolean ok = (u.getPassword() != null) && u.getPassword().equals(dto.getPassword());
-
-        AuthResponseDTO res = new AuthResponseDTO();
-        res.setAuthenticated(ok);
-        res.setUser(ok ? userMapper.toResponse(u) : null);
-        return res;
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen user bulunamadı: " + userId));
+        userRepository.delete(user);
     }
 }

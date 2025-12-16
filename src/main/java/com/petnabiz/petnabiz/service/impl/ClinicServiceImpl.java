@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
+@Service("clinicService") // @PreAuthorize içindeki @clinicService için net bean adı
 public class ClinicServiceImpl implements ClinicService {
 
     private final ClinicRepository clinicRepository;
@@ -34,6 +34,21 @@ public class ClinicServiceImpl implements ClinicService {
         this.veterinaryRepository = veterinaryRepository;
         this.userRepository = userRepository;
         this.clinicMapper = clinicMapper;
+    }
+
+    // ---------------------------
+    // Security helper (SpEL için)
+    // ---------------------------
+    @Override
+    public boolean isClinicSelf(String clinicEmail, String clinicId) {
+        if (clinicEmail == null || clinicId == null || clinicId.isBlank()) return false;
+
+        Clinic clinic = clinicRepository.findByClinicId(clinicId).orElse(null);
+        if (clinic == null) return false;
+
+        if (clinic.getUser() == null || clinic.getUser().getEmail() == null) return false;
+
+        return clinicEmail.equalsIgnoreCase(clinic.getUser().getEmail());
     }
 
     @Override
@@ -61,13 +76,8 @@ public class ClinicServiceImpl implements ClinicService {
 
     @Override
     public ClinicResponseDTO getClinicByEmail(String email) {
-        // Senin repo’da findByEmail varsa kullanabilirsin; ama email User’da olduğu için en garantisi user üzerinden gitmek:
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("User bulunamadı (email): " + email));
-
-        Clinic clinic = clinicRepository.findByClinicId(user.getUserId())
+        Clinic clinic = clinicRepository.findByUser_Email(email)
                 .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı (email): " + email));
-
         return clinicMapper.toResponse(clinic);
     }
 
@@ -85,16 +95,20 @@ public class ClinicServiceImpl implements ClinicService {
             throw new IllegalArgumentException("password zorunlu.");
         }
 
-        // email unique kontrolü user üzerinden
+        // ID çakışma kontrolü
+        if (clinicRepository.existsByClinicId(dto.getClinicId()) || userRepository.existsById(dto.getClinicId())) {
+            throw new IllegalArgumentException("Bu clinicId zaten kullanılıyor: " + dto.getClinicId());
+        }
+
+        // email unique kontrolü
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
         }
 
-        // user oluştur (MapsId: clinicId = userId)
         User user = new User();
         user.setUserId(dto.getClinicId());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword()); // TODO: hashle
+        user.setPassword(dto.getPassword()); // TODO: BCrypt
         user.setRole("ROLE_CLINIC");
         user.setActive(true);
 
@@ -121,20 +135,17 @@ public class ClinicServiceImpl implements ClinicService {
         Clinic existing = clinicRepository.findByClinicId(clinicId)
                 .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + clinicId));
 
-        // clinic alanları (null değilse güncelle)
         if (dto.getName() != null) existing.setName(dto.getName());
         if (dto.getCity() != null) existing.setCity(dto.getCity());
         if (dto.getDistrict() != null) existing.setDistrict(dto.getDistrict());
         if (dto.getAddress() != null) existing.setAddress(dto.getAddress());
         if (dto.getPhone() != null) existing.setPhone(dto.getPhone());
 
-        // user alanları
         if (existing.getUser() == null) {
             throw new IllegalStateException("Clinic'in user kaydı yok: " + clinicId);
         }
 
         if (dto.getEmail() != null) {
-            // email çakışma kontrolü
             userRepository.findByEmail(dto.getEmail()).ifPresent(u -> {
                 if (!u.getUserId().equals(existing.getUser().getUserId())) {
                     throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
@@ -152,12 +163,16 @@ public class ClinicServiceImpl implements ClinicService {
     }
 
     @Override
+    @Transactional
     public void deleteClinic(String clinicId) {
-        boolean exists = clinicRepository.existsByClinicId(clinicId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen klinik bulunamadı: " + clinicId);
-        }
-        clinicRepository.deleteById(clinicId);
+        // deleteById yerine entity üzerinden sil: PK mismatch riskini bitirir
+        Clinic existing = clinicRepository.findByClinicId(clinicId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen klinik bulunamadı: " + clinicId));
+
+        clinicRepository.delete(existing);
+
+        // İstersen user'ı da cascade/manuel sil (iş kuralı):
+        // userRepository.delete(existing.getUser());
     }
 
     @Override

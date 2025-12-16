@@ -7,6 +7,7 @@ import com.petnabiz.petnabiz.mapper.MedicationMapper;
 import com.petnabiz.petnabiz.model.MedicalRecord;
 import com.petnabiz.petnabiz.model.Medication;
 import com.petnabiz.petnabiz.model.Medicine;
+import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.repository.MedicalRecordRepository;
 import com.petnabiz.petnabiz.repository.MedicationRepository;
 import com.petnabiz.petnabiz.repository.MedicineRepository;
@@ -19,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
-@Service
+@Service("medicationService") // @PreAuthorize içinde @medicationService için net bean adı
 public class MedicationServiceImpl implements MedicationService {
 
     private final MedicationRepository medicationRepository;
@@ -39,6 +40,72 @@ public class MedicationServiceImpl implements MedicationService {
         this.petRepository = petRepository;
         this.medicationMapper = medicationMapper;
     }
+
+    // ---------------------------
+    // Security helpers (SpEL için)
+    // ---------------------------
+
+    @Override
+    public boolean isPetOwnedBy(String ownerEmail, String petId) {
+        if (ownerEmail == null || petId == null || petId.isBlank()) return false;
+
+        Pet pet = petRepository.findByPetId(petId).orElse(null);
+        if (pet == null) return false;
+
+        if (pet.getOwner() == null ||
+                pet.getOwner().getUser() == null ||
+                pet.getOwner().getUser().getEmail() == null) {
+            return false;
+        }
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
+    }
+
+    @Override
+    public boolean isRecordOwnedBy(String ownerEmail, String recordId) {
+        if (ownerEmail == null || recordId == null || recordId.isBlank()) return false;
+
+        MedicalRecord r = medicalRecordRepository.findByRecordId(recordId).orElse(null);
+        if (r == null) return false;
+        if (r.getPet() == null) return false;
+
+        Pet pet = r.getPet();
+
+        if (pet.getOwner() == null ||
+                pet.getOwner().getUser() == null ||
+                pet.getOwner().getUser().getEmail() == null) {
+            return false;
+        }
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
+    }
+
+    @Override
+    public boolean isMedicationOwnedBy(String ownerEmail, String medicationId) {
+        if (ownerEmail == null || medicationId == null || medicationId.isBlank()) return false;
+
+        Medication m = medicationRepository.findByMedicationId(medicationId).orElse(null);
+        if (m == null) return false;
+
+        // Medication -> MedicalRecord -> Pet -> Owner -> User -> Email
+        if (m.getMedicalRecord() == null) return false;
+        MedicalRecord r = m.getMedicalRecord();
+        if (r.getPet() == null) return false;
+
+        Pet pet = r.getPet();
+
+        if (pet.getOwner() == null ||
+                pet.getOwner().getUser() == null ||
+                pet.getOwner().getUser().getEmail() == null) {
+            return false;
+        }
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
+    }
+
+    // ---------------------------
+    // Queries
+    // ---------------------------
 
     @Override
     public List<MedicationResponseDTO> getAllMedications() {
@@ -109,6 +176,10 @@ public class MedicationServiceImpl implements MedicationService {
                 .toList();
     }
 
+    // ---------------------------
+    // Mutations
+    // ---------------------------
+
     @Override
     @Transactional
     public MedicationResponseDTO createMedication(MedicationCreateRequestDTO dto) {
@@ -143,7 +214,6 @@ public class MedicationServiceImpl implements MedicationService {
         m.setEnd(dto.getEnd());
         m.setMedicine(medicine);
 
-        // ⚠️ bunun çalışması için Medication entity’de setMedicalRecord olmalı
         if (record != null) {
             m.setMedicalRecord(record);
         }
@@ -189,11 +259,12 @@ public class MedicationServiceImpl implements MedicationService {
     }
 
     @Override
+    @Transactional
     public void deleteMedication(String medicationId) {
-        boolean exists = medicationRepository.existsById(medicationId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen medication bulunamadı: " + medicationId);
-        }
-        medicationRepository.deleteById(medicationId);
+        // PK karışıklığı riskini bitir:
+        Medication existing = medicationRepository.findByMedicationId(medicationId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen medication bulunamadı: " + medicationId));
+
+        medicationRepository.delete(existing);
     }
 }

@@ -75,7 +75,8 @@ public class Medication {
         this.medicine = medicine;
     }
 
-    public void setMedicalRecord(MedicalRecord record) {
+    public void setMedicalRecord(MedicalRecord medicalRecord) {
+        this.medicalRecord = medicalRecord;
     }
 
     public MedicalRecord getMedicalRecord(){

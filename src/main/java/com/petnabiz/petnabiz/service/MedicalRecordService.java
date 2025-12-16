@@ -26,4 +26,8 @@ public interface MedicalRecordService {
     MedicalRecordResponseDTO updateMedicalRecord(String recordId, MedicalRecordUpdateRequestDTO dto);
 
     void deleteMedicalRecord(String recordId);
+
+    boolean isPetOwnedBy(String ownerEmail, String petId);
+    boolean isRecordOwnedBy(String ownerEmail, String recordId);
+
 }

@@ -13,4 +13,9 @@ public interface SlotService {
     List<SlotResponseDTO> getAvailableSlots(String vetId, LocalDate date);
 
     AppointmentResponseDTO bookSlot(Long slotId, String petId);
+
+    // Security helpers (SpEL için)
+    boolean isClinicOwnerOfVet(String clinicEmail, String vetId);
+
+    boolean isPetOwnedBy(String ownerEmail, String petId);
 }

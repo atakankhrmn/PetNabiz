@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
-@Service
+@Service("medicalRecordService") // @PreAuthorize içinde @medicalRecordService diye çağıracağız
 public class MedicalRecordServiceImpl implements MedicalRecordService {
 
     private final MedicalRecordRepository medicalRecordRepository;
@@ -35,6 +35,49 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         this.veterinaryRepository = veterinaryRepository;
         this.medicalRecordMapper = medicalRecordMapper;
     }
+
+    // ---------------------------
+    // Security helpers (SpEL için)
+    // ---------------------------
+
+    @Override
+    public boolean isPetOwnedBy(String ownerEmail, String petId) {
+        if (ownerEmail == null || petId == null || petId.isBlank()) return false;
+
+        Pet pet = petRepository.findByPetId(petId).orElse(null);
+        if (pet == null) return false;
+
+        if (pet.getOwner() == null ||
+                pet.getOwner().getUser() == null ||
+                pet.getOwner().getUser().getEmail() == null) {
+            return false;
+        }
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
+    }
+
+    @Override
+    public boolean isRecordOwnedBy(String ownerEmail, String recordId) {
+        if (ownerEmail == null || recordId == null || recordId.isBlank()) return false;
+
+        MedicalRecord r = medicalRecordRepository.findByRecordId(recordId).orElse(null);
+        if (r == null) return false;
+        if (r.getPet() == null) return false;
+
+        Pet pet = r.getPet();
+
+        if (pet.getOwner() == null ||
+                pet.getOwner().getUser() == null ||
+                pet.getOwner().getUser().getEmail() == null) {
+            return false;
+        }
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
+    }
+
+    // ---------------------------
+    // CRUD
+    // ---------------------------
 
     @Override
     public List<MedicalRecordResponseDTO> getAllMedicalRecords() {
@@ -105,6 +148,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         MedicalRecord record = new MedicalRecord();
 
+        // Not: recordId client'tan gelmesin daha iyi, ama siz String id kullanıyorsanız şimdilik bırakıyoruz
         if (dto.getRecordId() != null && !dto.getRecordId().isBlank()) {
             record.setRecordId(dto.getRecordId());
         }
@@ -145,11 +189,12 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     }
 
     @Override
+    @Transactional
     public void deleteMedicalRecord(String recordId) {
-        boolean exists = medicalRecordRepository.existsById(recordId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen MedicalRecord bulunamadı: " + recordId);
-        }
-        medicalRecordRepository.deleteById(recordId);
+        // existsById/deleteById yerine güvenli silme:
+        MedicalRecord existing = medicalRecordRepository.findByRecordId(recordId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen MedicalRecord bulunamadı: " + recordId));
+
+        medicalRecordRepository.delete(existing);
     }
 }

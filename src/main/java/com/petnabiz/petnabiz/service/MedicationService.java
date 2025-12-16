@@ -32,4 +32,9 @@ public interface MedicationService {
     MedicationResponseDTO updateMedication(String medicationId, MedicationUpdateRequestDTO dto);
 
     void deleteMedication(String medicationId);
+    boolean isPetOwnedBy(String ownerEmail, String petId);
+    boolean isRecordOwnedBy(String ownerEmail, String recordId);
+    boolean isMedicationOwnedBy(String ownerEmail, String medicationId);
+
+
 }

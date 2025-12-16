@@ -20,7 +20,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Service
+@Service("appointmentService") // @PreAuthorize içindeki @appointmentService için net bean adı
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
@@ -37,6 +37,56 @@ public class AppointmentServiceImpl implements AppointmentService {
         this.veterinaryRepository = veterinaryRepository;
         this.appointmentMapper = appointmentMapper;
     }
+
+    // ---------------------------
+    // Security helpers (SpEL için)
+    // ---------------------------
+
+    @Override
+    public boolean isPetOwnedBy(String ownerEmail, String petId) {
+        if (ownerEmail == null || petId == null || petId.isBlank()) return false;
+
+        Pet pet = petRepository.findByPetId(petId).orElse(null);
+        if (pet == null) return false;
+
+        // TODO: burada alan adları sizde farklı olabilir:
+        // pet.getOwner().getEmail() yerine pet.getPetOwner().getUser().getEmail() vs.
+        if (pet.getOwner() == null || pet.getOwner().getUser().getEmail() == null) return false;
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
+    }
+
+    @Override
+    public boolean isAppointmentOwnedBy(String ownerEmail, String appointmentId) {
+        if (ownerEmail == null || appointmentId == null || appointmentId.isBlank()) return false;
+
+        Appointment a = appointmentRepository.findByAppointmentId(appointmentId).orElse(null);
+        if (a == null) return false;
+
+        if (a.getPet() == null) return false; // pet null ise owner'a ait saymayız
+        if (a.getPet().getOwner() == null || a.getPet().getOwner().getUser().getEmail() == null) return false;
+
+        return ownerEmail.equalsIgnoreCase(a.getPet().getOwner().getUser().getEmail());
+    }
+
+    @Override
+    public List<AppointmentResponseDTO> getMyAppointments(String ownerEmail) {
+        // Owner'ın tüm pet'leri -> onların appointment'ları
+        // Performans için repository'de join query tercih edilir (aşağıdaki çözüm temel ve güvenli)
+        List<Pet> myPets = petRepository.findByOwner_User_Email(ownerEmail); // repo methodu eklemen gerekecek
+        if (myPets.isEmpty()) return List.of();
+
+        List<Appointment> all = new ArrayList<>();
+        for (Pet p : myPets) {
+            all.addAll(appointmentRepository.findByPet_PetId(p.getPetId()));
+        }
+
+        return all.stream().map(appointmentMapper::toResponse).toList();
+    }
+
+    // ---------------------------
+    // CRUD
+    // ---------------------------
 
     @Override
     public List<AppointmentResponseDTO> getAllAppointments() {
@@ -102,7 +152,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         Veterinary vet = veterinaryRepository.findByVetId(dto.getVetId())
                 .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + dto.getVetId()));
 
-        // pet opsiyonel
+        // pet opsiyonel ama varsa gerçekten var mı kontrol et
         Pet pet = null;
         if (dto.getPetId() != null && !dto.getPetId().isBlank()) {
             pet = petRepository.findByPetId(dto.getPetId())
@@ -119,7 +169,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment appointment = new Appointment();
 
-        // appointmentId client’tan geliyorsa set et, yoksa DB/servis üretmeli (sizde string, o yüzden opsiyon bıraktım)
+        // Kritik: appointmentId client'tan gelmesin daha iyi.
+        // Ama siz string kullanıyorsanız mecburen id üretimini service tarafına taşıyın.
         if (dto.getAppointmentId() != null && !dto.getAppointmentId().isBlank()) {
             appointment.setAppointmentId(dto.getAppointmentId());
         }
@@ -148,7 +199,6 @@ public class AppointmentServiceImpl implements AppointmentService {
             LocalDate newDate = dto.getDateTime().toLocalDate();
             LocalTime newTime = dto.getDateTime().toLocalTime();
 
-            // eğer vet de değişiyorsa önce onu belirle, çakışmayı ona göre kontrol et
             String vetIdForCheck = existing.getVeterinary().getVetId();
             if (dto.getVetId() != null && !dto.getVetId().isBlank()) {
                 vetIdForCheck = dto.getVetId();
@@ -158,7 +208,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                     vetIdForCheck, newDate, newTime
             );
 
-            // aynı randevunun kendisiyle çakışma riskini azaltmak için (repo’da id dışlama yoksa) basit check:
             if (exists && !(newDate.equals(existing.getDate()) && newTime.equals(existing.getTime())
                     && vetIdForCheck.equals(existing.getVeterinary().getVetId()))) {
                 throw new IllegalStateException("Bu tarih ve saatte veteriner için zaten randevu var.");
@@ -171,7 +220,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         // pet değişimi
         if (dto.getPetId() != null) {
             if (dto.getPetId().isBlank()) {
-                // boş string gelirse pet'i null'la (pet nullable)
                 existing.setPet(null);
             } else {
                 Pet newPet = petRepository.findByPetId(dto.getPetId())
@@ -195,11 +243,13 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    @Transactional
     public void deleteAppointment(String appointmentId) {
-        boolean exists = appointmentRepository.existsById(appointmentId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinecek appointment bulunamadı: " + appointmentId);
-        }
-        appointmentRepository.deleteById(appointmentId);
+        // SİZDE BUG VARDI:
+        // existsById/deleteById genelde @Id (PK) bekler. appointmentId alanınız PK olmayabilir.
+        Appointment existing = appointmentRepository.findByAppointmentId(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinecek appointment bulunamadı: " + appointmentId));
+
+        appointmentRepository.delete(existing);
     }
 }
