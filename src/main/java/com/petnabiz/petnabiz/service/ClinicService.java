@@ -1,34 +1,30 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Clinic;
-import com.petnabiz.petnabiz.model.Veterinary;
+import com.petnabiz.petnabiz.dto.request.clinic.ClinicCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.clinic.ClinicUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.clinic.ClinicResponseDTO;
+import com.petnabiz.petnabiz.dto.summary.VetSummaryDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface ClinicService {
 
-    // Tüm klinikleri getir
-    List<Clinic> getAllClinics();
+    List<ClinicResponseDTO> getAllClinics();
 
-    // ID ile klinik bul
-    Optional<Clinic> getClinicById(String clinicId);
+    ClinicResponseDTO getClinicById(String clinicId);
 
-    // İsim arama
-    List<Clinic> searchClinicsByName(String namePart);
+    List<ClinicResponseDTO> searchClinicsByName(String namePart);
 
-    // Email ile klinik bul
-    Optional<Clinic> getClinicByEmail(String email);
+    ClinicResponseDTO getClinicByEmail(String email);
 
-    // Klinik oluştur
-    Clinic createClinic(Clinic clinic);
+    ClinicResponseDTO createClinic(ClinicCreateRequestDTO dto);
 
-    // Klinik güncelle
-    Clinic updateClinic(String clinicId, Clinic updatedClinic);
+    ClinicResponseDTO updateClinic(String clinicId, ClinicUpdateRequestDTO dto);
 
-    // Klinik sil
     void deleteClinic(String clinicId);
 
-    // Kliniğe bağlı veterinerleri getir
-    List<Veterinary> getVeterinariesByClinic(String clinicId);
+    List<VetSummaryDTO> getVeterinariesByClinic(String clinicId);
+
+    boolean isClinicSelf(String clinicEmail, String clinicId);
+
 }

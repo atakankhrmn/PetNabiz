@@ -1,5 +1,9 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.appointment.AppointmentCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.appointment.AppointmentUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.appointment.AppointmentResponseDTO;
+import com.petnabiz.petnabiz.mapper.AppointmentMapper;
 import com.petnabiz.petnabiz.model.Appointment;
 import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.model.Veterinary;
@@ -7,176 +11,245 @@ import com.petnabiz.petnabiz.repository.AppointmentRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.AppointmentService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
-@Service
+@Service("appointmentService") // @PreAuthorize içindeki @appointmentService için net bean adı
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final PetRepository petRepository;
     private final VeterinaryRepository veterinaryRepository;
+    private final AppointmentMapper appointmentMapper;
 
     public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
                                   PetRepository petRepository,
-                                  VeterinaryRepository veterinaryRepository) {
+                                  VeterinaryRepository veterinaryRepository,
+                                  AppointmentMapper appointmentMapper) {
         this.appointmentRepository = appointmentRepository;
         this.petRepository = petRepository;
         this.veterinaryRepository = veterinaryRepository;
+        this.appointmentMapper = appointmentMapper;
+    }
+
+    // ---------------------------
+    // Security helpers (SpEL için)
+    // ---------------------------
+
+    @Override
+    public boolean isPetOwnedBy(String ownerEmail, String petId) {
+        if (ownerEmail == null || petId == null || petId.isBlank()) return false;
+
+        Pet pet = petRepository.findByPetId(petId).orElse(null);
+        if (pet == null) return false;
+
+        // TODO: burada alan adları sizde farklı olabilir:
+        // pet.getOwner().getEmail() yerine pet.getPetOwner().getUser().getEmail() vs.
+        if (pet.getOwner() == null || pet.getOwner().getUser().getEmail() == null) return false;
+
+        return ownerEmail.equalsIgnoreCase(pet.getOwner().getUser().getEmail());
     }
 
     @Override
-    public List<Appointment> getAllAppointments() {
-        return appointmentRepository.findAll();
+    public boolean isAppointmentOwnedBy(String ownerEmail, String appointmentId) {
+        if (ownerEmail == null || appointmentId == null || appointmentId.isBlank()) return false;
+
+        Appointment a = appointmentRepository.findByAppointmentId(appointmentId).orElse(null);
+        if (a == null) return false;
+
+        if (a.getPet() == null) return false; // pet null ise owner'a ait saymayız
+        if (a.getPet().getOwner() == null || a.getPet().getOwner().getUser().getEmail() == null) return false;
+
+        return ownerEmail.equalsIgnoreCase(a.getPet().getOwner().getUser().getEmail());
     }
 
     @Override
-    public Optional<Appointment> getAppointmentById(String appointmentId) {
-        return appointmentRepository.findByAppointmentId(appointmentId);
-        // veya: return appointmentRepository.findById(appointmentId);
+    public List<AppointmentResponseDTO> getMyAppointments(String ownerEmail) {
+        // Owner'ın tüm pet'leri -> onların appointment'ları
+        // Performans için repository'de join query tercih edilir (aşağıdaki çözüm temel ve güvenli)
+        List<Pet> myPets = petRepository.findByOwner_User_Email(ownerEmail); // repo methodu eklemen gerekecek
+        if (myPets.isEmpty()) return List.of();
+
+        List<Appointment> all = new ArrayList<>();
+        for (Pet p : myPets) {
+            all.addAll(appointmentRepository.findByPet_PetId(p.getPetId()));
+        }
+
+        return all.stream().map(appointmentMapper::toResponse).toList();
+    }
+
+    // ---------------------------
+    // CRUD
+    // ---------------------------
+
+    @Override
+    public List<AppointmentResponseDTO> getAllAppointments() {
+        return appointmentRepository.findAll()
+                .stream()
+                .map(appointmentMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public List<Appointment> getAppointmentsByPetId(String petId) {
-        return appointmentRepository.findByPet_PetId(petId);
+    public AppointmentResponseDTO getAppointmentById(String appointmentId) {
+        Appointment a = appointmentRepository.findByAppointmentId(appointmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Appointment bulunamadı: " + appointmentId));
+        return appointmentMapper.toResponse(a);
     }
 
     @Override
-    public List<Appointment> getAppointmentsByVeterinaryId(String vetId) {
-        return appointmentRepository.findByVeterinary_VetId(vetId);
+    public List<AppointmentResponseDTO> getAppointmentsByPetId(String petId) {
+        return appointmentRepository.findByPet_PetId(petId)
+                .stream()
+                .map(appointmentMapper::toResponse)
+                .toList();
     }
 
-    public List<Appointment> getAppointmentsByClinicId(String clinicId) {
+    @Override
+    public List<AppointmentResponseDTO> getAppointmentsByVeterinaryId(String vetId) {
+        return appointmentRepository.findByVeterinary_VetId(vetId)
+                .stream()
+                .map(appointmentMapper::toResponse)
+                .toList();
+    }
 
+    @Override
+    public List<AppointmentResponseDTO> getAppointmentsByClinicId(String clinicId) {
         List<Veterinary> vetList = veterinaryRepository.findByClinic_ClinicId(clinicId);
 
         List<Appointment> allAppointments = new ArrayList<>();
-
         for (Veterinary vet : vetList) {
-            List<Appointment> appointments = appointmentRepository.findByVeterinary_VetId(vet.getVetId());
-            allAppointments.addAll(appointments);
-        }
-
-        return allAppointments;
-    }
-
-
-    @Override
-    public List<Appointment> getAppointmentsByVeterinaryAndDateRange(
-            String vetId,
-            LocalDate startDate,
-            LocalDate endDate
-    ) {
-        return appointmentRepository.findByVeterinary_VetIdAndDateBetween(
-                vetId, startDate, endDate
-        );
-    }
-
-    @Override
-    public Appointment createAppointment(Appointment appointment) {
-        /*
-         * Beklediğimiz şey:
-         * - appointment.getPet().getPetId() dolu olacak
-         * - appointment.getVeterinary().getVetId() dolu olacak
-         * - appointment.getDate(), appointment.getTime() dolu olacak
-         *
-         * Bu method:
-         *  1) Pet gerçekten var mı kontrol eder
-         *  2) Vet gerçekten var mı kontrol eder
-         *  3) Vet'in aynı gün / aynı saatte randevusu var mı bakar (çakışma)
-         *  4) Managed entity'lerle appointment'i kaydeder
-         */
-
-        if (appointment.getPet() == null || appointment.getPet().getPetId() == null) {
-            throw new IllegalArgumentException("Appointment için pet bilgisi zorunlu.");
-        }
-        if (appointment.getVeterinary() == null || appointment.getVeterinary().getVetId() == null) {
-            throw new IllegalArgumentException("Appointment için veterinary bilgisi zorunlu.");
-        }
-
-        String petId = appointment.getPet().getPetId();
-        String vetId = appointment.getVeterinary().getVetId();
-
-        Pet pet = petRepository.findByPetId(petId)
-                .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + petId));
-
-        Veterinary vet = veterinaryRepository.findByVetId(vetId)
-                .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + vetId));
-
-        LocalDate date = appointment.getDate();
-        LocalTime time = appointment.getTime();
-
-        if (date == null || time == null) {
-            throw new IllegalArgumentException("Appointment için date ve time zorunludur.");
-        }
-
-        // Basit çakışma kontrolü: aynı vet, aynı gün, aynı saat
-        boolean exists = appointmentRepository
-                .existsByVeterinary_VetIdAndDateAndTime(vetId, date, time);
-
-        if (exists) {
-            throw new IllegalStateException(
-                    "Bu tarih ve saatte veteriner için zaten bir randevu mevcut."
+            allAppointments.addAll(
+                    appointmentRepository.findByVeterinary_VetId(vet.getVetId())
             );
         }
 
-        // Managed entity'leri set et
-        appointment.setPet(pet);
-        appointment.setVeterinary(vet);
-
-        return appointmentRepository.save(appointment);
+        return allAppointments.stream()
+                .map(appointmentMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Appointment updateAppointment(String appointmentId, Appointment updatedAppointment) {
+    @Transactional
+    public AppointmentResponseDTO createAppointment(AppointmentCreateRequestDTO dto) {
+
+        if (dto.getVetId() == null || dto.getVetId().isBlank()) {
+            throw new IllegalArgumentException("Appointment için vetId zorunlu.");
+        }
+        if (dto.getDateTime() == null) {
+            throw new IllegalArgumentException("Appointment için dateTime zorunlu.");
+        }
+
+        LocalDate date = dto.getDateTime().toLocalDate();
+        LocalTime time = dto.getDateTime().toLocalTime();
+
+        Veterinary vet = veterinaryRepository.findByVetId(dto.getVetId())
+                .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + dto.getVetId()));
+
+        // pet opsiyonel ama varsa gerçekten var mı kontrol et
+        Pet pet = null;
+        if (dto.getPetId() != null && !dto.getPetId().isBlank()) {
+            pet = petRepository.findByPetId(dto.getPetId())
+                    .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + dto.getPetId()));
+        }
+
+        // çakışma kontrolü: aynı vet + date + time
+        boolean exists = appointmentRepository.existsByVeterinary_VetIdAndDateAndTime(
+                dto.getVetId(), date, time
+        );
+        if (exists) {
+            throw new IllegalStateException("Bu tarih ve saatte veteriner için zaten randevu var.");
+        }
+
+        Appointment appointment = new Appointment();
+
+        // Kritik: appointmentId client'tan gelmesin daha iyi.
+        // Ama siz string kullanıyorsanız mecburen id üretimini service tarafına taşıyın.
+        if (dto.getAppointmentId() != null && !dto.getAppointmentId().isBlank()) {
+            appointment.setAppointmentId(dto.getAppointmentId());
+        }
+
+        appointment.setDate(date);
+        appointment.setTime(time);
+        appointment.setVeterinary(vet);
+        appointment.setPet(pet);
+
+        if (dto.getStatus() != null) appointment.setStatus(dto.getStatus());
+        if (dto.getReason() != null) appointment.setReason(dto.getReason());
+
+        Appointment saved = appointmentRepository.save(appointment);
+        return appointmentMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public AppointmentResponseDTO updateAppointment(String appointmentId, AppointmentUpdateRequestDTO dto) {
+
         Appointment existing = appointmentRepository.findByAppointmentId(appointmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Appointment bulunamadı: " + appointmentId));
+                .orElseThrow(() -> new EntityNotFoundException("Appointment bulunamadı: " + appointmentId));
 
-        // Temel alanlar: tarih & saat (modelindeki alan isimlerine göre)
-        if (updatedAppointment.getDate() != null) {
-            existing.setDate(updatedAppointment.getDate());
+        // dateTime güncelle
+        if (dto.getDateTime() != null) {
+            LocalDate newDate = dto.getDateTime().toLocalDate();
+            LocalTime newTime = dto.getDateTime().toLocalTime();
+
+            String vetIdForCheck = existing.getVeterinary().getVetId();
+            if (dto.getVetId() != null && !dto.getVetId().isBlank()) {
+                vetIdForCheck = dto.getVetId();
+            }
+
+            boolean exists = appointmentRepository.existsByVeterinary_VetIdAndDateAndTime(
+                    vetIdForCheck, newDate, newTime
+            );
+
+            if (exists && !(newDate.equals(existing.getDate()) && newTime.equals(existing.getTime())
+                    && vetIdForCheck.equals(existing.getVeterinary().getVetId()))) {
+                throw new IllegalStateException("Bu tarih ve saatte veteriner için zaten randevu var.");
+            }
+
+            existing.setDate(newDate);
+            existing.setTime(newTime);
         }
-        if (updatedAppointment.getTime() != null) {
-            existing.setTime(updatedAppointment.getTime());
+
+        // pet değişimi
+        if (dto.getPetId() != null) {
+            if (dto.getPetId().isBlank()) {
+                existing.setPet(null);
+            } else {
+                Pet newPet = petRepository.findByPetId(dto.getPetId())
+                        .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + dto.getPetId()));
+                existing.setPet(newPet);
+            }
         }
 
-        // Pet değişimi isteniyorsa:
-        if (updatedAppointment.getPet() != null && updatedAppointment.getPet().getPetId() != null) {
-            String newPetId = updatedAppointment.getPet().getPetId();
-            Pet newPet = petRepository.findByPetId(newPetId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni pet bulunamadı: " + newPetId));
-            existing.setPet(newPet);
-        }
-
-        // Vet değişimi isteniyorsa:
-        if (updatedAppointment.getVeterinary() != null &&
-                updatedAppointment.getVeterinary().getVetId() != null) {
-
-            String newVetId = updatedAppointment.getVeterinary().getVetId();
-            Veterinary newVet = veterinaryRepository.findByVetId(newVetId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni veterinary bulunamadı: " + newVetId));
+        // vet değişimi
+        if (dto.getVetId() != null && !dto.getVetId().isBlank()) {
+            Veterinary newVet = veterinaryRepository.findByVetId(dto.getVetId())
+                    .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + dto.getVetId()));
             existing.setVeterinary(newVet);
         }
 
-        // Burada istersen reason / status gibi alanlar da varsa onları da benzer şekilde set edebilirsin:
-        // existing.setReason(updatedAppointment.getReason());
-        // existing.setStatus(updatedAppointment.getStatus());
+        if (dto.getStatus() != null) existing.setStatus(dto.getStatus());
+        if (dto.getReason() != null) existing.setReason(dto.getReason());
 
-        return appointmentRepository.save(existing);
+        Appointment saved = appointmentRepository.save(existing);
+        return appointmentMapper.toResponse(saved);
     }
 
     @Override
+    @Transactional
     public void deleteAppointment(String appointmentId) {
-        boolean exists = appointmentRepository.existsById(appointmentId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen appointment bulunamadı: " + appointmentId);
-        }
+        // SİZDE BUG VARDI:
+        // existsById/deleteById genelde @Id (PK) bekler. appointmentId alanınız PK olmayabilir.
+        Appointment existing = appointmentRepository.findByAppointmentId(appointmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinecek appointment bulunamadı: " + appointmentId));
 
-        appointmentRepository.deleteById(appointmentId);
+        appointmentRepository.delete(existing);
     }
 }

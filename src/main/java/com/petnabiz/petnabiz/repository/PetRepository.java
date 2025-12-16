@@ -56,4 +56,5 @@ public interface PetRepository extends JpaRepository<Pet, String> {
 
     List<Pet> findByWeightBetween(double min, double max);
 
+    List<Pet> findByOwner_User_Email(String email);
 }

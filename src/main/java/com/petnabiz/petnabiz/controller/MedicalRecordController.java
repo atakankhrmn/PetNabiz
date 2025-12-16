@@ -1,12 +1,16 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.MedicalRecord;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicalrecord.MedicalRecordResponseDTO;
 import com.petnabiz.petnabiz.service.MedicalRecordService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/medical-records")
@@ -19,80 +23,82 @@ public class MedicalRecordController {
     }
 
     /**
-     * 1) Tüm medical record'ları getir
-     * GET /api/medical-records
+     * Tüm kayıtlar:
+     * - ADMIN/CLINIC görür
+     * - OWNER görmez (owner için pet bazlı endpoint var)
      */
     @GetMapping
-    public ResponseEntity<List<MedicalRecord>> getAllMedicalRecords() {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<List<MedicalRecordResponseDTO>> getAllMedicalRecords() {
         return ResponseEntity.ok(medicalRecordService.getAllMedicalRecords());
     }
 
     /**
-     * 2) ID'ye göre medical record getir
-     * GET /api/medical-records/{recordId}
+     * RecordId ile getir:
+     * - ADMIN/CLINIC görür
+     * - OWNER sadece kendi pet'ine aitse görür
      */
     @GetMapping("/{recordId}")
-    public ResponseEntity<MedicalRecord> getMedicalRecordById(@PathVariable String recordId) {
-        Optional<MedicalRecord> recordOpt = medicalRecordService.getMedicalRecordById(recordId);
-        return recordOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @medicalRecordService.isRecordOwnedBy(authentication.name, #recordId))")
+    public ResponseEntity<MedicalRecordResponseDTO> getMedicalRecordById(@PathVariable String recordId) {
+        return ResponseEntity.ok(medicalRecordService.getMedicalRecordById(recordId));
     }
 
     /**
-     * 3) Pet ID'ye göre medical record'ları getir
-     * GET /api/medical-records/pet/{petId}
+     * PetId ile getir:
+     * - ADMIN/CLINIC görür
+     * - OWNER sadece kendi pet'iyse görür
      */
     @GetMapping("/pet/{petId}")
-    public ResponseEntity<List<MedicalRecord>> getMedicalRecordsByPetId(@PathVariable String petId) {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @medicalRecordService.isPetOwnedBy(authentication.name, #petId))")
+    public ResponseEntity<List<MedicalRecordResponseDTO>> getMedicalRecordsByPetId(@PathVariable String petId) {
         return ResponseEntity.ok(medicalRecordService.getMedicalRecordsByPetId(petId));
     }
 
     /**
-     * 4) Vet ID'ye göre medical record'ları getir (istersen)
-     * GET /api/medical-records/vet/{vetId}
+     * VetId ile getir:
+     * - OWNER'a KESİN KAPALI (yoksa vetId ile başka kayıtları görür)
      */
     @GetMapping("/vet/{vetId}")
-    public ResponseEntity<List<MedicalRecord>> getMedicalRecordsByVetId(@PathVariable String vetId) {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<List<MedicalRecordResponseDTO>> getMedicalRecordsByVetId(@PathVariable String vetId) {
         return ResponseEntity.ok(medicalRecordService.getMedicalRecordsByVeterinaryId(vetId));
     }
 
     /**
-     * 5) Yeni medical record oluştur
-     * POST /api/medical-records
-     *
-     * Body örneği:
-     * {
-     *   "pet": { "petId": "P001" },
-     *   "veterinary": { "vetId": "V001" },
-     *   "diagnosis": "Kronik gastrit",
-     *   "treatment": "Özel diyet + ilaç",
-     *   "recordDate": "2025-02-10"
-     * }
+     * Create:
+     * - ADMIN/CLINIC
+     * - OWNER YASAK
      */
     @PostMapping
-    public ResponseEntity<MedicalRecord> createMedicalRecord(@RequestBody MedicalRecord medicalRecord) {
-        MedicalRecord created = medicalRecordService.createMedicalRecord(medicalRecord);
-        return ResponseEntity.ok(created);
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<MedicalRecordResponseDTO> createMedicalRecord(@Valid @RequestBody MedicalRecordCreateRequestDTO dto) {
+        MedicalRecordResponseDTO created = medicalRecordService.createMedicalRecord(dto);
+        URI location = URI.create("/api/medical-records/" + created.getRecordId()); // field adına göre düzelt
+        return ResponseEntity.created(location).body(created);
     }
 
     /**
-     * 6) Medical record güncelle
-     * PUT /api/medical-records/{recordId}
+     * Update:
+     * - ADMIN/CLINIC
+     * - OWNER YASAK
      */
     @PutMapping("/{recordId}")
-    public ResponseEntity<MedicalRecord> updateMedicalRecord(
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<MedicalRecordResponseDTO> updateMedicalRecord(
             @PathVariable String recordId,
-            @RequestBody MedicalRecord updatedRecord
+            @Valid @RequestBody MedicalRecordUpdateRequestDTO dto
     ) {
-        MedicalRecord updated = medicalRecordService.updateMedicalRecord(recordId, updatedRecord);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(medicalRecordService.updateMedicalRecord(recordId, dto));
     }
 
     /**
-     * 7) Medical record sil
-     * DELETE /api/medical-records/{recordId}
+     * Delete:
+     * - ADMIN
+     * - CLINIC (iş kuralına göre açılabilir, şimdilik ADMIN'e bıraktım)
      */
     @DeleteMapping("/{recordId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteMedicalRecord(@PathVariable String recordId) {
         medicalRecordService.deleteMedicalRecord(recordId);
         return ResponseEntity.noContent().build();

@@ -1,38 +1,30 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Veterinary;
+import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
+import com.petnabiz.petnabiz.dto.response.veterinary.VeterinaryResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface VeterinaryService {
 
-    // Tüm vet'leri listele
-    List<Veterinary> getAllVeterinaries();
+    List<VeterinaryResponseDTO> getAllVeterinaries();
 
-    // ID ile vet bul
-    Optional<Veterinary> getVeterinaryById(String vetId);
+    VeterinaryResponseDTO getVeterinaryById(String vetId);
 
-    // İsim aramaları-KULLANIRSA CLINIC KULLANIR
-    List<Veterinary> searchByFirstName(String firstNamePart);
+    List<VeterinaryResponseDTO> getVeterinariesByClinicId(String clinicId);
 
-    List<Veterinary> searchByLastName(String lastNamePart);
+    VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto);
 
-    // Telefon numarası ile bul
-    Optional<Veterinary> getByPhoneNumber(String phoneNumber);
+    VeterinaryResponseDTO updateVeterinary(String vetId, VeterinaryUpdateRequestDTO dto);
 
-    // Sertifika / diploma bilgisine göre arama
-    List<Veterinary> searchByCertificate(String certificatePart);
-
-    // Belirli bir kliniğe bağlı vet'ler
-    List<Veterinary> getVeterinariesByClinicId(String clinicId);
-
-    // Yeni vet oluştur
-    Veterinary createVeterinary(Veterinary veterinary);
-
-    // Var olan vet'i güncelle
-    Veterinary updateVeterinary(String vetId, Veterinary updatedVeterinary);
-
-    // Vet sil
     void deleteVeterinary(String vetId);
+
+    // SpEL / security helpers
+    boolean isClinicOwner(String clinicEmail, String clinicId);
+
+    boolean isClinicOwnerOfVet(String clinicEmail, String vetId);
+
+    public List<VeterinaryResponseDTO> getAllMyVeterinaries();
 }

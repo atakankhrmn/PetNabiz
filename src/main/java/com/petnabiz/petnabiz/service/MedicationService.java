@@ -1,44 +1,40 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Medication;
+import com.petnabiz.petnabiz.dto.request.medication.MedicationCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medication.MedicationUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medication.MedicationResponseDTO;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 public interface MedicationService {
 
-    // Tüm ilaç kayıtları
-    List<Medication> getAllMedications();
+    List<MedicationResponseDTO> getAllMedications();
 
-    // ID ile tek medication
-    Optional<Medication> getMedicationById(String medicationId);
+    MedicationResponseDTO getMedicationById(String medicationId);
 
-    // Belirli bir medicineId'ye ait tüm medication kayıtları
-    List<Medication> getMedicationsByMedicineId(String medicineId);
+    List<MedicationResponseDTO> getMedicationsByPetId(String petId);
 
-    // İlaç adına göre arama
-    List<Medication> searchByMedicineName(String namePart);
+    List<MedicationResponseDTO> getMedicationsByMedicalRecordId(String recordId);
 
-    // Type'a göre filtre (tablet, syrup vs.)
-    List<Medication> getMedicationsByMedicineType(String type);
+    List<MedicationResponseDTO> getMedicationsByMedicineId(String medicineId);
 
-    // Belirli bir tarihte aktif olan ilaçlar (start ≤ date ≤ end)
-    List<Medication> getActiveMedicationsOn(LocalDate date);
+    List<MedicationResponseDTO> searchByMedicineName(String namePart);
 
-    // Başlangıç & bitiş aralığı belirli bir range içinde olan ilaçlar
-    List<Medication> getMedicationsBetween(LocalDate start, LocalDate end);
+    List<MedicationResponseDTO> getMedicationsByMedicineType(String type);
 
-    // Yeni medication kaydı oluştur
-    Medication createMedication(Medication medication);
+    List<MedicationResponseDTO> getActiveMedicationsOn(LocalDate date);
 
-    // Var olan medication'ı güncelle
-    Medication updateMedication(String medicationId, Medication updatedMedication);
+    List<MedicationResponseDTO> getMedicationsBetween(LocalDate start, LocalDate end);
 
-    // Medication sil
+    MedicationResponseDTO createMedication(MedicationCreateRequestDTO dto);
+
+    MedicationResponseDTO updateMedication(String medicationId, MedicationUpdateRequestDTO dto);
+
     void deleteMedication(String medicationId);
+    boolean isPetOwnedBy(String ownerEmail, String petId);
+    boolean isRecordOwnedBy(String ownerEmail, String recordId);
+    boolean isMedicationOwnedBy(String ownerEmail, String medicationId);
 
-    List<Medication> getMedicationsByMedicalRecordId(String recordId);
 
-    List<Medication> getMedicationsByPetId(String petId);
 }

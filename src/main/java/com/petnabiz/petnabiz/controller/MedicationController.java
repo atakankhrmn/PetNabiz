@@ -1,12 +1,16 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.Medication;
+import com.petnabiz.petnabiz.dto.request.medication.MedicationCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medication.MedicationUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medication.MedicationResponseDTO;
 import com.petnabiz.petnabiz.service.MedicationService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/medications")
@@ -19,81 +23,82 @@ public class MedicationController {
     }
 
     /**
-     * 1) Tüm medication'ları getir
-     * GET /api/medications
+     * Tüm medications:
+     * - ADMIN/CLINIC görür
+     * - OWNER görmez (owner için pet/record bazlı endpoint var)
      */
     @GetMapping
-    public ResponseEntity<List<Medication>> getAllMedications() {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<List<MedicationResponseDTO>> getAllMedications() {
         return ResponseEntity.ok(medicationService.getAllMedications());
     }
 
     /**
-     * 2) ID'ye göre medication getir
-     * GET /api/medications/{medicationId}
+     * Medication id ile:
+     * - ADMIN/CLINIC görür
+     * - OWNER sadece kendi record/pet'ine bağlıysa görür
      */
     @GetMapping("/{medicationId}")
-    public ResponseEntity<Medication> getMedicationById(@PathVariable String medicationId) {
-        Optional<Medication> medOpt = medicationService.getMedicationById(medicationId);
-        return medOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @medicationService.isMedicationOwnedBy(authentication.name, #medicationId))")
+    public ResponseEntity<MedicationResponseDTO> getMedicationById(@PathVariable String medicationId) {
+        return ResponseEntity.ok(medicationService.getMedicationById(medicationId));
     }
 
     /**
-     * 3) Pet ID'ye göre medication'ları getir
-     * GET /api/medications/pet/{petId}
+     * Pet'e göre:
+     * - ADMIN/CLINIC görür
+     * - OWNER sadece kendi pet'iyse görür
      */
     @GetMapping("/pet/{petId}")
-    public ResponseEntity<List<Medication>> getMedicationsByPetId(@PathVariable String petId) {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @medicationService.isPetOwnedBy(authentication.name, #petId))")
+    public ResponseEntity<List<MedicationResponseDTO>> getMedicationsByPetId(@PathVariable String petId) {
         return ResponseEntity.ok(medicationService.getMedicationsByPetId(petId));
     }
 
     /**
-     * 4) Medical Record ID'ye göre medication'ları getir (eğer ilişki varsa)
-     * GET /api/medications/record/{recordId}
+     * Medical record'a göre:
+     * - ADMIN/CLINIC görür
+     * - OWNER sadece kendi pet'ine ait record ise görür
      */
     @GetMapping("/record/{recordId}")
-    public ResponseEntity<List<Medication>> getMedicationsByRecordId(@PathVariable String recordId) {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @medicationService.isRecordOwnedBy(authentication.name, #recordId))")
+    public ResponseEntity<List<MedicationResponseDTO>> getMedicationsByRecordId(@PathVariable String recordId) {
         return ResponseEntity.ok(medicationService.getMedicationsByMedicalRecordId(recordId));
     }
 
     /**
-     * 5) Yeni medication oluştur
-     * POST /api/medications
-     *
-     * Body örneği:
-     * {
-     *   "pet": { "petId": "P001" },
-     *   "medicalRecord": { "recordId": "R100" },
-     *   "name": "Antibiyotik",
-     *   "dosage": "Günde 2 kez",
-     *   "startDate": "2025-02-10",
-     *   "endDate": "2025-02-17"
-     * }
+     * Create:
+     * - ADMIN/CLINIC
+     * - OWNER yasak
      */
     @PostMapping
-    public ResponseEntity<Medication> createMedication(@RequestBody Medication medication) {
-        Medication created = medicationService.createMedication(medication);
-        return ResponseEntity.ok(created);
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<MedicationResponseDTO> createMedication(@Valid @RequestBody MedicationCreateRequestDTO dto) {
+        MedicationResponseDTO created = medicationService.createMedication(dto);
+        URI location = URI.create("/api/medications/" + created.getMedicationId()); // field adına göre düzelt
+        return ResponseEntity.created(location).body(created);
     }
 
     /**
-     * 6) Medication güncelle
-     * PUT /api/medications/{medicationId}
+     * Update:
+     * - ADMIN/CLINIC
+     * - OWNER yasak
      */
     @PutMapping("/{medicationId}")
-    public ResponseEntity<Medication> updateMedication(
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<MedicationResponseDTO> updateMedication(
             @PathVariable String medicationId,
-            @RequestBody Medication updatedMedication
+            @Valid @RequestBody MedicationUpdateRequestDTO dto
     ) {
-        Medication updated = medicationService.updateMedication(medicationId, updatedMedication);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(medicationService.updateMedication(medicationId, dto));
     }
 
     /**
-     * 7) Medication sil
-     * DELETE /api/medications/{medicationId}
+     * Delete:
+     * - ADMIN (istersen CLINIC de açarsın)
      */
     @DeleteMapping("/{medicationId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteMedication(@PathVariable String medicationId) {
         medicationService.deleteMedication(medicationId);
         return ResponseEntity.noContent().build();

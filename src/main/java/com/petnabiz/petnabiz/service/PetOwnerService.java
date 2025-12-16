@@ -1,32 +1,38 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.PetOwner;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.petowner.PetOwnerResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface PetOwnerService {
 
-    // Tüm owner'lar
-    List<PetOwner> getAllPetOwners();
+    // ADMIN
+    List<PetOwnerResponseDTO> getAllPetOwners();
 
-    // ID ile owner bul
-    Optional<PetOwner> getPetOwnerById(String ownerId);
+    // ADMIN or OWNER self
+    PetOwnerResponseDTO getPetOwnerById(String ownerId);
 
-    // User email ile owner bul (login sonrası vs.)
-    Optional<PetOwner> getPetOwnerByEmail(String email);
+    // ADMIN only (email üzerinden başkasını çekmek privacy)
+    PetOwnerResponseDTO getPetOwnerByEmail(String email);
 
-    // İsim bazlı aramalar
-    List<PetOwner> searchPetOwnersByFirstName(String firstNamePart);
+    // ADMIN only
+    List<PetOwnerResponseDTO> searchPetOwnersByFirstName(String firstNamePart);
+    List<PetOwnerResponseDTO> searchPetOwnersByLastName(String lastNamePart);
 
-    List<PetOwner> searchPetOwnersByLastName(String lastNamePart);
+    // register (permitAll ya da admin)
+    PetOwnerResponseDTO createPetOwner(PetOwnerCreateRequestDTO dto);
 
-    // Yeni owner oluştur
-    PetOwner createPetOwner(PetOwner petOwner);
+    // ADMIN or OWNER self
+    PetOwnerResponseDTO updatePetOwner(String ownerId, PetOwnerUpdateRequestDTO dto);
 
-    // Var olan owner'ı güncelle
-    PetOwner updatePetOwner(String ownerId, PetOwner updatedOwner);
-
-    // Owner sil
+    // ADMIN only (istersen self-delete açarız)
     void deletePetOwner(String ownerId);
+
+    // OWNER için “ben”
+    PetOwnerResponseDTO getMyProfile();
+
+    // Security helper (SpEL)
+    boolean isSelf(String ownerId, String email);
 }

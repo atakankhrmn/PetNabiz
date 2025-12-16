@@ -22,7 +22,7 @@ public class Appointment {
     private String reason; //opsiyonel
 
     @ManyToOne
-    @JoinColumn(name = "pet_id",nullable = false)
+    @JoinColumn(name = "pet_id",nullable = true)
     private Pet pet;
 
     @ManyToOne

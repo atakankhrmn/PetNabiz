@@ -1,151 +1,188 @@
 package com.petnabiz.petnabiz.service.impl;
 
+import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
+import com.petnabiz.petnabiz.dto.response.veterinary.VeterinaryResponseDTO;
+import com.petnabiz.petnabiz.mapper.VeterinaryMapper;
 import com.petnabiz.petnabiz.model.Clinic;
 import com.petnabiz.petnabiz.model.Veterinary;
 import com.petnabiz.petnabiz.repository.ClinicRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.VeterinaryService;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
-@Service
+@Service("veterinaryService") // SpEL için
 public class VeterinaryServiceImpl implements VeterinaryService {
 
     private final VeterinaryRepository veterinaryRepository;
     private final ClinicRepository clinicRepository;
+    private final VeterinaryMapper veterinaryMapper;
 
     public VeterinaryServiceImpl(VeterinaryRepository veterinaryRepository,
-                                 ClinicRepository clinicRepository) {
+                                 ClinicRepository clinicRepository,
+                                 VeterinaryMapper veterinaryMapper) {
         this.veterinaryRepository = veterinaryRepository;
         this.clinicRepository = clinicRepository;
+        this.veterinaryMapper = veterinaryMapper;
+    }
+
+    // ---- helpers ----
+    @Override
+    public boolean isClinicOwner(String clinicEmail, String clinicId) {
+        if (clinicEmail == null || clinicEmail.isBlank() || clinicId == null || clinicId.isBlank()) return false;
+
+        Clinic clinic = clinicRepository.findByClinicId(clinicId).orElse(null);
+        if (clinic == null || clinic.getUser() == null || clinic.getUser().getEmail() == null) return false;
+
+        return clinicEmail.equalsIgnoreCase(clinic.getUser().getEmail());
     }
 
     @Override
-    public List<Veterinary> getAllVeterinaries() {
-        return veterinaryRepository.findAll();
+    public boolean isClinicOwnerOfVet(String clinicEmail, String vetId) {
+        if (clinicEmail == null || clinicEmail.isBlank() || vetId == null || vetId.isBlank()) return false;
+
+        Veterinary vet = veterinaryRepository.findByVetId(vetId).orElse(null);
+        if (vet == null || vet.getClinic() == null || vet.getClinic().getUser() == null) return false;
+
+        String email = vet.getClinic().getUser().getEmail();
+        return email != null && clinicEmail.equalsIgnoreCase(email);
+    }
+
+    // ---- reads ----
+    @Override
+    public List<VeterinaryResponseDTO> getAllVeterinaries() {
+        return veterinaryRepository.findAll().stream()
+                .map(veterinaryMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public Optional<Veterinary> getVeterinaryById(String vetId) {
-        return veterinaryRepository.findByVetId(vetId);
-        // veya: return veterinaryRepository.findById(vetId);
+    public VeterinaryResponseDTO getVeterinaryById(String vetId) {
+        Veterinary v = veterinaryRepository.findByVetId(vetId)
+                .orElseThrow(() -> new EntityNotFoundException("Veterinary bulunamadı: " + vetId));
+        return veterinaryMapper.toResponse(v);
     }
 
     @Override
-    public List<Veterinary> searchByFirstName(String firstNamePart) {
-        return veterinaryRepository.findByFirstNameContainingIgnoreCase(firstNamePart);
-    }
-
-    @Override
-    public List<Veterinary> searchByLastName(String lastNamePart) {
-        return veterinaryRepository.findByLastNameContainingIgnoreCase(lastNamePart);
-    }
-
-    @Override
-    public Optional<Veterinary> getByPhoneNumber(String phoneNumber) {
-        return veterinaryRepository.findByPhoneNumber(phoneNumber);
-    }
-
-    @Override
-    public List<Veterinary> searchByCertificate(String certificatePart) {
-        return veterinaryRepository.findByCertificateContainingIgnoreCase(certificatePart);
-    }
-
-    @Override
-    public List<Veterinary> getVeterinariesByClinicId(String clinicId) {
-        // Önce klinik var mı diye bak (opsiyonel ama hatayı daha anlamlı yapar)
+    public List<VeterinaryResponseDTO> getVeterinariesByClinicId(String clinicId) {
         clinicRepository.findByClinicId(clinicId)
-                .orElseThrow(() -> new IllegalArgumentException("Clinic bulunamadı: " + clinicId));
+                .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + clinicId));
 
-        return veterinaryRepository.findByClinic_ClinicId(clinicId);
+        return veterinaryRepository.findByClinic_ClinicId(clinicId).stream()
+                .map(veterinaryMapper::toResponse)
+                .toList();
     }
 
+    // ---- writes ----
     @Override
-    public Veterinary createVeterinary(Veterinary veterinary) {
+    @Transactional
+    public VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto) {
 
-        // Basit zorunlu alan kontrolleri
-        if (veterinary.getVetId() == null || veterinary.getVetId().trim().isEmpty()) {
+        if (dto.getVetId() == null || dto.getVetId().trim().isEmpty()) {
             throw new IllegalArgumentException("Veterinary ID boş olamaz.");
         }
-        if (veterinary.getFirstName() == null || veterinary.getFirstName().trim().isEmpty()) {
+        if (dto.getFirstName() == null || dto.getFirstName().trim().isEmpty()) {
             throw new IllegalArgumentException("Veterinary firstName boş olamaz.");
         }
-        if (veterinary.getLastName() == null || veterinary.getLastName().trim().isEmpty()) {
+        if (dto.getLastName() == null || dto.getLastName().trim().isEmpty()) {
             throw new IllegalArgumentException("Veterinary lastName boş olamaz.");
         }
-        if (veterinary.getPhoneNumber() == null || veterinary.getPhoneNumber().trim().isEmpty()) {
+        if (dto.getPhoneNumber() == null || dto.getPhoneNumber().trim().isEmpty()) {
             throw new IllegalArgumentException("Veterinary phoneNumber boş olamaz.");
         }
 
-        // Aynı ID'de vet var mı?
-        if (veterinaryRepository.existsByVetId(veterinary.getVetId())) {
-            throw new IllegalStateException("Bu vetId ile zaten bir veterinary kayıtlı: " + veterinary.getVetId());
+        if (veterinaryRepository.existsByVetId(dto.getVetId())) {
+            throw new IllegalStateException("Bu vetId ile zaten bir veterinary kayıtlı: " + dto.getVetId());
         }
 
-        // Klinik set edildiyse, gerçekten var mı?
-        if (veterinary.getClinic() != null && veterinary.getClinic().getClinicId() != null) {
-            String clinicId = veterinary.getClinic().getClinicId();
+        Veterinary v = new Veterinary();
+        v.setVetId(dto.getVetId());
+        v.setFirstName(dto.getFirstName());
+        v.setLastName(dto.getLastName());
+        v.setPhoneNumber(dto.getPhoneNumber());
+        v.setAddress(dto.getAddress());
+        v.setCertificate(dto.getCertificate());
 
-            Clinic clinic = clinicRepository.findByClinicId(clinicId)
-                    .orElseThrow(() -> new IllegalArgumentException("Clinic bulunamadı: " + clinicId));
-
-            veterinary.setClinic(clinic); // managed entity
+        // clinic zorunlu olsun istiyorsan burada check koy:
+        if (dto.getClinicId() != null && !dto.getClinicId().trim().isEmpty()) {
+            Clinic clinic = clinicRepository.findByClinicId(dto.getClinicId())
+                    .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + dto.getClinicId()));
+            v.setClinic(clinic);
         }
 
-        return veterinaryRepository.save(veterinary);
+        Veterinary saved = veterinaryRepository.save(v);
+        return veterinaryMapper.toResponse(saved);
     }
 
     @Override
-    public Veterinary updateVeterinary(String vetId, Veterinary updatedVeterinary) {
+    @Transactional
+    public VeterinaryResponseDTO updateVeterinary(String vetId, VeterinaryUpdateRequestDTO dto) {
+
         Veterinary existing = veterinaryRepository.findByVetId(vetId)
-                .orElseThrow(() -> new IllegalArgumentException("Veterinary bulunamadı: " + vetId));
+                .orElseThrow(() -> new EntityNotFoundException("Veterinary bulunamadı: " + vetId));
 
-        // İsimler
-        if (updatedVeterinary.getFirstName() != null && !updatedVeterinary.getFirstName().trim().isEmpty()) {
-            existing.setFirstName(updatedVeterinary.getFirstName());
+        if (dto.getFirstName() != null && !dto.getFirstName().trim().isEmpty()) {
+            existing.setFirstName(dto.getFirstName());
         }
-        if (updatedVeterinary.getLastName() != null && !updatedVeterinary.getLastName().trim().isEmpty()) {
-            existing.setLastName(updatedVeterinary.getLastName());
+        if (dto.getLastName() != null && !dto.getLastName().trim().isEmpty()) {
+            existing.setLastName(dto.getLastName());
         }
-
-        // Telefon
-        if (updatedVeterinary.getPhoneNumber() != null && !updatedVeterinary.getPhoneNumber().trim().isEmpty()) {
-            existing.setPhoneNumber(updatedVeterinary.getPhoneNumber());
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().trim().isEmpty()) {
+            existing.setPhoneNumber(dto.getPhoneNumber());
         }
-
-        // Adres
-        if (updatedVeterinary.getAddress() != null) {
-            existing.setAddress(updatedVeterinary.getAddress());
+        if (dto.getAddress() != null) {
+            existing.setAddress(dto.getAddress());
+        }
+        if (dto.getCertificate() != null) {
+            existing.setCertificate(dto.getCertificate());
         }
 
-        // Sertifika
-        if (updatedVeterinary.getCertificate() != null) {
-            existing.setCertificate(updatedVeterinary.getCertificate());
-        }
-
-        // Klinik değişimi
-        if (updatedVeterinary.getClinic() != null &&
-                updatedVeterinary.getClinic().getClinicId() != null) {
-
-            String newClinicId = updatedVeterinary.getClinic().getClinicId();
-            Clinic newClinic = clinicRepository.findByClinicId(newClinicId)
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni clinic bulunamadı: " + newClinicId));
-
+        // Klinik değiştirme CLINIC için tehlikeli -> bence sadece ADMIN yapmalı.
+        // Yine de bırakacaksan:
+        if (dto.getClinicId() != null && !dto.getClinicId().trim().isEmpty()) {
+            Clinic newClinic = clinicRepository.findByClinicId(dto.getClinicId())
+                    .orElseThrow(() -> new EntityNotFoundException("Yeni clinic bulunamadı: " + dto.getClinicId()));
             existing.setClinic(newClinic);
         }
 
-        return veterinaryRepository.save(existing);
+        Veterinary saved = veterinaryRepository.save(existing);
+        return veterinaryMapper.toResponse(saved);
     }
 
     @Override
+    @Transactional
     public void deleteVeterinary(String vetId) {
-        boolean exists = veterinaryRepository.existsByVetId(vetId);
-        if (!exists) {
-            throw new IllegalArgumentException("Silinmek istenen veterinary bulunamadı: " + vetId);
-        }
-
-        veterinaryRepository.deleteById(vetId);
+        Veterinary v = veterinaryRepository.findByVetId(vetId)
+                .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen veterinary bulunamadı: " + vetId));
+        veterinaryRepository.delete(v);
     }
+
+    @Override
+    public List<VeterinaryResponseDTO> getAllMyVeterinaries() {
+
+        String email = currentEmail();
+
+        Clinic clinic = clinicRepository.findByUser_Email(email)
+                .orElseThrow(() -> new RuntimeException("Clinic not found for email: " + email));
+
+        return veterinaryRepository.findByClinic_ClinicId(clinic.getClinicId())
+                .stream()
+                .map(veterinaryMapper::toResponse)
+                .toList();
+    }
+
+    private String currentEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) throw new IllegalStateException("Authentication yok.");
+        return auth.getName(); // username = email (SecurityUserDetailsService)
+    }
+
 }

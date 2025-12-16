@@ -1,13 +1,16 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.User;
+import com.petnabiz.petnabiz.dto.request.user.UserCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.user.UserPasswordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.user.UserUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.user.UserResponseDTO;
 import com.petnabiz.petnabiz.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -15,163 +18,105 @@ public class UserController {
 
     private final UserService userService;
 
-    // Constructor injection
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
-    /**
-     * 1) Tüm kullanıcıları getir
-     * GET /api/users
-     */
+    // ADMIN
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    /**
-     * 2) ID'ye göre user getir
-     * GET /api/users/{userId}
-     */
+    // SELF
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','CLINIC')")
+    public ResponseEntity<UserResponseDTO> getMe() {
+        return ResponseEntity.ok(userService.getMe());
+    }
+
+    // ADMIN or SELF (id ile erişim IDOR olmasın)
     @GetMapping("/{userId}")
-    public ResponseEntity<User> getUserById(@PathVariable String userId) {
-        Optional<User> userOpt = userService.getUserById(userId);
-        return userOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN') or @userService.isSelf(#userId, authentication.name)")
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable String userId) {
+        return ResponseEntity.ok(userService.getUserById(userId));
     }
 
-    /**
-     * 3) Email'e göre user getir
-     * GET /api/users/email/{email}
-     */
+    // email ile user çekmek privacy -> ADMIN
     @GetMapping("/email/{email}")
-    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
-        Optional<User> userOpt = userService.getUserByEmail(email);
-        return userOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> getUserByEmail(@PathVariable String email) {
+        return ResponseEntity.ok(userService.getUserByEmail(email));
     }
 
-    /**
-     * 4) Role göre user listesi
-     * GET /api/users/role/{role}
-     * Ör: /api/users/role/ADMIN
-     */
     @GetMapping("/role/{role}")
-    public ResponseEntity<List<User>> getUsersByRole(@PathVariable String role) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> getUsersByRole(@PathVariable String role) {
         return ResponseEntity.ok(userService.getUsersByRole(role));
     }
 
-    /**
-     * 5) Aktif kullanıcılar
-     * GET /api/users/active
-     */
     @GetMapping("/active")
-    public ResponseEntity<List<User>> getActiveUsers() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> getActiveUsers() {
         return ResponseEntity.ok(userService.getActiveUsers());
     }
 
-    /**
-     * 6) Pasif kullanıcılar
-     * GET /api/users/inactive
-     */
     @GetMapping("/inactive")
-    public ResponseEntity<List<User>> getInactiveUsers() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> getInactiveUsers() {
         return ResponseEntity.ok(userService.getInactiveUsers());
     }
 
-    /**
-     * 7) Yeni user oluştur
-     * POST /api/users
-     *
-     * Body ör:
-     * {
-     *   "userId": "U001",
-     *   "email": "test@test.com",
-     *   "password": "123456",
-     *   "role": "OWNER",
-     *   "active": true
-     * }
-     */
+    // user create admin işi (register endpointlerin owner/clinic/admin create’lerde zaten user yaratıyorsun)
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        User created = userService.createUser(user);
-        return ResponseEntity.ok(created);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> createUser(@RequestBody UserCreateRequestDTO dto) {
+        UserResponseDTO created = userService.createUser(dto);
+        URI location = URI.create("/api/users/" + created.getUserId());
+        return ResponseEntity.created(location).body(created);
     }
 
-    /**
-     * 8) User güncelle (email/role/active vs)
-     * PUT /api/users/{userId}
-     */
+    // ADMIN (role/email gibi alanlar admin işi)
     @PutMapping("/{userId}")
-    public ResponseEntity<User> updateUser(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable String userId,
-            @RequestBody User updatedUser
+            @RequestBody UserUpdateRequestDTO dto
     ) {
-        User updated = userService.updateUser(userId, updatedUser);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(userService.updateUser(userId, dto));
     }
 
-    /**
-     * 9) User şifresi güncelle
-     * PUT /api/users/{userId}/password
-     *
-     * Body:
-     * { "newPassword": "yeniSifre123" }
-     */
+    // SELF password change
+    @PutMapping("/me/password")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER','CLINIC')")
+    public ResponseEntity<UserResponseDTO> updateMyPassword(@RequestBody UserPasswordUpdateRequestDTO dto) {
+        return ResponseEntity.ok(userService.updateMyPassword(dto));
+    }
+
+    // ADMIN can reset others
     @PutMapping("/{userId}/password")
-    public ResponseEntity<User> updatePassword(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> updatePassword(
             @PathVariable String userId,
-            @RequestBody Map<String, String> body
+            @RequestBody UserPasswordUpdateRequestDTO dto
     ) {
-        String newPassword = body.get("newPassword");
-        User updated = userService.updatePassword(userId, newPassword);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(userService.updatePassword(userId, dto));
     }
 
-    /**
-     * 10) User aktif/pasif durumu değiştir
-     * PUT /api/users/{userId}/status?active=true
-     */
     @PutMapping("/{userId}/status")
-    public ResponseEntity<User> setActiveStatus(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> setActiveStatus(
             @PathVariable String userId,
             @RequestParam boolean active
     ) {
-        User updated = userService.setActiveStatus(userId, active);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(userService.setActiveStatus(userId, active));
     }
 
-    /**
-     * 11) User sil
-     * DELETE /api/users/{userId}
-     */
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId) {
         userService.deleteUser(userId);
         return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * 12) Basit authenticate (email + password)
-     * POST /api/users/authenticate
-     *
-     * Body:
-     * {
-     *   "email": "test@test.com",
-     *   "password": "123456"
-     * }
-     *
-     * NOT: Şu an plain text check, production için JWT + encoder ile geliştirilir.
-     */
-    @PostMapping("/authenticate")
-    public ResponseEntity<User> authenticate(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String password = body.get("password");
-
-        Optional<User> userOpt = userService.authenticate(email, password);
-
-        return userOpt
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(401).build());
     }
 }

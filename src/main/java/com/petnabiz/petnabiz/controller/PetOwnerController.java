@@ -1,12 +1,15 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.PetOwner;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.petowner.PetOwnerUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.petowner.PetOwnerResponseDTO;
 import com.petnabiz.petnabiz.service.PetOwnerService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/pet-owners")
@@ -18,73 +21,60 @@ public class PetOwnerController {
         this.petOwnerService = petOwnerService;
     }
 
-    /**
-     * 1) Tüm pet owner'ları getir
-     * GET /api/pet-owners
-     */
+    // ADMIN: liste
     @GetMapping
-    public ResponseEntity<List<PetOwner>> getAllPetOwners() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<PetOwnerResponseDTO>> getAllPetOwners() {
         return ResponseEntity.ok(petOwnerService.getAllPetOwners());
     }
 
-    /**
-     * 2) Owner ID'ye göre pet owner getir
-     * GET /api/pet-owners/{ownerId}
-     */
+    // OWNER: kendi profilini buradan al
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<PetOwnerResponseDTO> getMyProfile() {
+        return ResponseEntity.ok(petOwnerService.getMyProfile());
+    }
+
+    // ADMIN veya OWNER(self) -> id ile get
     @GetMapping("/{ownerId}")
-    public ResponseEntity<PetOwner> getPetOwnerById(@PathVariable String ownerId) {
-        Optional<PetOwner> ownerOpt = petOwnerService.getPetOwnerById(ownerId);
-        return ownerOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('OWNER') and @petOwnerService.isSelf(#ownerId, authentication.name))")
+    public ResponseEntity<PetOwnerResponseDTO> getPetOwnerById(@PathVariable String ownerId) {
+        return ResponseEntity.ok(petOwnerService.getPetOwnerById(ownerId));
     }
 
-    /**
-     * 3) Email'e göre pet owner getir (opsiyonel, varsa)
-     * GET /api/pet-owners/email/{email}
-     */
+    // Email ile get: privacy, sadece ADMIN
     @GetMapping("/email/{email}")
-    public ResponseEntity<PetOwner> getPetOwnerByEmail(@PathVariable String email) {
-        Optional<PetOwner> ownerOpt = petOwnerService.getPetOwnerByEmail(email);
-        return ownerOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PetOwnerResponseDTO> getPetOwnerByEmail(@PathVariable String email) {
+        return ResponseEntity.ok(petOwnerService.getPetOwnerByEmail(email));
     }
 
     /**
-     * 4) Yeni pet owner oluştur
-     * POST /api/pet-owners
-     *
-     * Body örneği:
-     * {
-     *   "ownerId": "O001",
-     *   "name": "Serhat",
-     *   "phone": "555...",
-     *   "email": "serhat@example.com"
-     * }
+     * Register endpoint
+     * - bunu permitAll yapacaksan SecurityConfig’te /api/pet-owners POST'u permitAll aç.
+     * - Açmak istemiyorsan @PreAuthorize'ı admin yap.
      */
     @PostMapping
-    public ResponseEntity<PetOwner> createPetOwner(@RequestBody PetOwner petOwner) {
-        PetOwner created = petOwnerService.createPetOwner(petOwner);
-        return ResponseEntity.ok(created);
+    @PreAuthorize("hasRole('ADMIN')") // istersen permitAll yaparız
+    public ResponseEntity<PetOwnerResponseDTO> createPetOwner(@RequestBody PetOwnerCreateRequestDTO dto) {
+        PetOwnerResponseDTO created = petOwnerService.createPetOwner(dto);
+        URI location = URI.create("/api/pet-owners/" + created.getOwnerId()); // DTO field adı ownerId olmalı
+        return ResponseEntity.created(location).body(created);
     }
 
-    /**
-     * 5) Pet owner güncelle
-     * PUT /api/pet-owners/{ownerId}
-     */
+    // ADMIN veya OWNER(self) update
     @PutMapping("/{ownerId}")
-    public ResponseEntity<PetOwner> updatePetOwner(
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('OWNER') and @petOwnerService.isSelf(#ownerId, authentication.name))")
+    public ResponseEntity<PetOwnerResponseDTO> updatePetOwner(
             @PathVariable String ownerId,
-            @RequestBody PetOwner updatedPetOwner
+            @RequestBody PetOwnerUpdateRequestDTO dto
     ) {
-        PetOwner updated = petOwnerService.updatePetOwner(ownerId, updatedPetOwner);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(petOwnerService.updatePetOwner(ownerId, dto));
     }
 
-    /**
-     * 6) Pet owner sil
-     * DELETE /api/pet-owners/{ownerId}
-     */
+    // Delete sadece ADMIN (self-delete istiyorsan ayrıca açarız)
     @DeleteMapping("/{ownerId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletePetOwner(@PathVariable String ownerId) {
         petOwnerService.deletePetOwner(ownerId);
         return ResponseEntity.noContent().build();

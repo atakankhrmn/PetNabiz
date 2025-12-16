@@ -1,41 +1,32 @@
 package com.petnabiz.petnabiz.service;
 
-import com.petnabiz.petnabiz.model.Pet;
+import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface PetService {
 
-    // Tüm pet'leri listele
-    List<Pet> getAllPets();
+    // ADMIN
+    List<PetResponseDTO> getAllPets();
 
-    // ID ile pet bul
-    Optional<Pet> getPetById(String petId);
+    // ADMIN + (OWNER own-check via @PreAuthorize)
+    PetResponseDTO getPetById(String petId);
 
-    // Owner'a göre pet listesi
-    List<Pet> getPetsByOwnerId(String ownerId);
+    // OWNER (current user) - /api/pets/my
+    List<PetResponseDTO> getMyPets();
 
-    // İsim arama
-    List<Pet> searchPetsByName(String namePart);
+    // ADMIN (ownerId ile listeleme)
+    List<PetResponseDTO> getPetsByOwnerId(String ownerId);
 
-    // Tür/ırk filtre
-    List<Pet> getPetsBySpecies(String species);
+    // ADMIN + OWNER (owner self-enforced in service for create/update)
+    PetResponseDTO createPet(PetCreateRequestDTO dto);
 
-    /*
-    List<Pet> getPetsBySpeciesAndBreed(String species, String breed);
-    */
+    PetResponseDTO updatePet(String petId, PetUpdateRequestDTO dto);
 
-    // Yeni pet oluştur
-    Pet createPet(Pet pet);
-
-    // Var olan pet'i güncelle
-    Pet updatePet(String petId, Pet updatedPet);
-
-    // Pet sil
     void deletePet(String petId);
 
-    /*
-    List<Pet> getPetsByClinicId(String clinicId);
-     */
+    // Security helper for SpEL
+    boolean isPetOwnedBy(String ownerEmail, String petId);
 }

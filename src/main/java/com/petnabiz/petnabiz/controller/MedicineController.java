@@ -1,12 +1,14 @@
 package com.petnabiz.petnabiz.controller;
 
-import com.petnabiz.petnabiz.model.Medicine;
+import com.petnabiz.petnabiz.dto.request.medicine.MedicineCreateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medicine.MedicineUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.response.medicine.MedicineResponseDTO;
 import com.petnabiz.petnabiz.service.MedicineService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/medicines")
@@ -18,63 +20,52 @@ public class MedicineController {
         this.medicineService = medicineService;
     }
 
-    /**
-     * Tüm ilaçları getir
-     * GET /api/medicines
-     */
+    // Read: login olan herkes (admin/clinic/owner)
     @GetMapping
-    public ResponseEntity<List<Medicine>> getAllMedicines() {
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC','OWNER')")
+    public ResponseEntity<List<MedicineResponseDTO>> getAllMedicines() {
         return ResponseEntity.ok(medicineService.getAllMedicines());
     }
 
-    /**
-     * ID'ye göre ilaç getir
-     * GET /api/medicines/{medicineId}
-     */
     @GetMapping("/{medicineId}")
-    public ResponseEntity<Medicine> getMedicineById(@PathVariable String medicineId) {
-        Optional<Medicine> medOpt = medicineService.getMedicineById(medicineId);
-        return medOpt.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC','OWNER')")
+    public ResponseEntity<MedicineResponseDTO> getMedicineById(@PathVariable String medicineId) {
+        return ResponseEntity.ok(medicineService.getMedicineById(medicineId));
     }
 
-    /**
-     * Yeni ilaç ekle (kataloğa)
-     * POST /api/medicines
-     */
+    @GetMapping("/type/{type}")
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC','OWNER')")
+    public ResponseEntity<List<MedicineResponseDTO>> getMedicinesByType(@PathVariable String type) {
+        return ResponseEntity.ok(medicineService.getMedicinesByType(type));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC','OWNER')")
+    public ResponseEntity<List<MedicineResponseDTO>> searchByName(@RequestParam String name) {
+        return ResponseEntity.ok(medicineService.searchByName(name));
+    }
+
+    // Write: admin + clinic
     @PostMapping
-    public ResponseEntity<Medicine> createMedicine(@RequestBody Medicine medicine) {
-        Medicine created = medicineService.createMedicine(medicine);
-        return ResponseEntity.ok(created);
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<MedicineResponseDTO> createMedicine(@RequestBody MedicineCreateRequestDTO dto) {
+        return ResponseEntity.ok(medicineService.createMedicine(dto));
     }
 
-    /**
-     * İlaç bilgisi güncelle
-     * PUT /api/medicines/{medicineId}
-     */
     @PutMapping("/{medicineId}")
-    public ResponseEntity<Medicine> updateMedicine(
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC')")
+    public ResponseEntity<MedicineResponseDTO> updateMedicine(
             @PathVariable String medicineId,
-            @RequestBody Medicine updatedMedicine
+            @RequestBody MedicineUpdateRequestDTO dto
     ) {
-        Medicine updated = medicineService.updateMedicine(medicineId, updatedMedicine);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(medicineService.updateMedicine(medicineId, dto));
     }
 
-    /**
-     * İlaç sil
-     * DELETE /api/medicines/{medicineId}
-     */
+    // Delete: sadece admin
     @DeleteMapping("/{medicineId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteMedicine(@PathVariable String medicineId) {
         medicineService.deleteMedicine(medicineId);
         return ResponseEntity.noContent().build();
     }
-
-    // GET /api/medicines/type/{type}
-    @GetMapping("/type/{type}")
-    public ResponseEntity<List<Medicine>> getMedicinesByType(@PathVariable String type) {
-        return ResponseEntity.ok(medicineService.getMedicinesByType(type));
-    }
-
 }
