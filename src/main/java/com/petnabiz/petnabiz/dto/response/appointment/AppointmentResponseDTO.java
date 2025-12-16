@@ -13,4 +13,5 @@ public class AppointmentResponseDTO {
     private String status;
     private String vetId;
     private String petId;
+    private String reason;
 }
