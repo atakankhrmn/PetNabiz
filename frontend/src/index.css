@@ -1,0 +1,31 @@
+/* index.css - Ferah Sağlık Teması */
+:root {
+  --hospital-blue: #0284c7;
+  --light-blue: #e0f2fe;
+  --success-green: #22c55e;
+  --danger-red: #ef4444;
+  --text-main: #1e293b;
+  --bg-body: #f1f5f9;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+#root {
+  max-width: none !important;
+}
+
+button {
+  transition: all 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.98);
+}
