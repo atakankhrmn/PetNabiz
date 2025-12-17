@@ -3,8 +3,9 @@ import lombok.Data;
 
 @Data
 public class RegisterOwnerRequestDTO {
-    private String ownerId;
-    private String fullName;
+
+    private String firstName;
+    private String lastName;
     private String phone;
     private String address;
     private String email;
