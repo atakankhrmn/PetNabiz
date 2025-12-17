@@ -9,7 +9,7 @@ import java.util.List;
 public class Pet {
 
     @Id
-    @Column(name = "pet_id", length = 20)
+    @Column(name = "pet_id", columnDefinition = "VARCHAR(36)")
     private String petId;
 
     private String name;

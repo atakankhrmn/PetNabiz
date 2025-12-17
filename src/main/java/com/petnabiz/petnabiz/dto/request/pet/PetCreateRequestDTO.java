@@ -5,7 +5,6 @@ import java.time.LocalDate;
 
 @Data
 public class PetCreateRequestDTO {
-    private String petId;      // opsiyonel (siz veriyorsanız)
     private String name;
     private String species;    // zorunlu
     private String breed;

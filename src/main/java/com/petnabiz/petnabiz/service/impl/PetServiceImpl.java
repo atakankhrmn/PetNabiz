@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service("petService") // @PreAuthorize içinde @petService çağıracağız
 public class PetServiceImpl implements PetService {
@@ -102,6 +103,7 @@ public class PetServiceImpl implements PetService {
 
     @Override
     @Transactional
+
     public PetResponseDTO createPet(PetCreateRequestDTO dto) {
 
         if (dto.getSpecies() == null || dto.getSpecies().isBlank()) {
@@ -109,13 +111,6 @@ public class PetServiceImpl implements PetService {
         }
         if (dto.getGender() == null || dto.getGender().isBlank()) {
             throw new IllegalArgumentException("Pet için gender zorunlu.");
-        }
-        if (dto.getPetId() == null || dto.getPetId().isBlank()) {
-            // Pet entity'de @Id String -> zorunlu
-            throw new IllegalArgumentException("Pet için petId zorunlu.");
-        }
-        if (petRepository.existsByPetId(dto.getPetId())) {
-            throw new IllegalStateException("Bu petId zaten kullanılıyor: " + dto.getPetId());
         }
 
         // OWNER ise ownerId'yi DTO'dan ALMIYORUZ. Kendinden çıkarıyoruz.
@@ -137,8 +132,15 @@ public class PetServiceImpl implements PetService {
                     .orElseThrow(() -> new IllegalArgumentException("Owner bulunamadı (email): " + email));
         }
 
+        // ✅ petId backend'de üretilir (DTO'dan gelmez)
+        String newPetId = UUID.randomUUID().toString();
+        while (petRepository.existsByPetId(newPetId)) { // aşırı düşük ihtimal ama garanti
+            newPetId = UUID.randomUUID().toString();
+        }
+
         Pet pet = new Pet();
-        pet.setPetId(dto.getPetId());
+        pet.setPetId(newPetId);
+
         pet.setName(dto.getName());
         pet.setSpecies(dto.getSpecies());
         pet.setBreed(dto.getBreed());
@@ -152,6 +154,7 @@ public class PetServiceImpl implements PetService {
         Pet saved = petRepository.save(pet);
         return petMapper.toResponse(saved);
     }
+
 
     @Override
     @Transactional
