@@ -6,6 +6,7 @@ import com.petnabiz.petnabiz.dto.response.clinic.ClinicResponseDTO;
 import com.petnabiz.petnabiz.dto.summary.VetSummaryDTO;
 import com.petnabiz.petnabiz.mapper.ClinicMapper;
 import com.petnabiz.petnabiz.model.Clinic;
+import com.petnabiz.petnabiz.model.ClinicApplication;
 import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.model.Veterinary;
 import com.petnabiz.petnabiz.repository.ClinicRepository;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service("clinicService") // @PreAuthorize içindeki @clinicService için net bean adı
 public class ClinicServiceImpl implements ClinicService {
@@ -182,5 +184,50 @@ public class ClinicServiceImpl implements ClinicService {
 
         List<Veterinary> vets = veterinaryRepository.findByClinic_ClinicId(clinicId);
         return vets.stream().map(clinicMapper::toVetSummary).toList();
+    }
+
+    /**
+     * ADMIN APPROVE → ClinicApplication → User + Clinic oluşturur
+     */
+    @Override
+    @Transactional
+    public void createClinicFromApplication(ClinicApplication app) {
+
+        if (userRepository.existsByEmail(app.getEmail())) {
+            throw new IllegalStateException("Email already exists");
+        }
+
+        String userId = generateClinicUserId();
+
+        User user = new User();
+        user.setUserId(userId);
+        user.setEmail(app.getEmail());
+        user.setPassword(app.getPassword()); // hashli
+        user.setActive(true);
+        user.setRole("ROLE_CLINIC"); // ✅ hasRole ile uyumlu
+
+        // ✅ kritik: managed user'ı al
+        User savedUser = userRepository.save(user);
+
+        Clinic clinic = new Clinic();
+        clinic.setUser(savedUser); // ✅ savedUser ver
+        clinic.setName(app.getClinicName());
+        clinic.setCity(app.getCity());
+        clinic.setDistrict(app.getDistrict());
+        clinic.setAddress(app.getAddress());
+        clinic.setPhone(app.getPhone());
+
+        clinicRepository.save(clinic);
+    }
+
+
+    /**
+     * C-XXXXXXX formatında userId üretir
+     */
+    private String generateClinicUserId() {
+        return "C-" + UUID.randomUUID()
+                .toString()
+                .substring(0, 8)
+                .toUpperCase();
     }
 }

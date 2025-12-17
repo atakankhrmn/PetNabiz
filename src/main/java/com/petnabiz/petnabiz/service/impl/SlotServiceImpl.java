@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service("slotService") // SpEL için
 public class SlotServiceImpl implements SlotService {
@@ -140,8 +141,14 @@ public class SlotServiceImpl implements SlotService {
         appt.setStatus("Active");
         appt.setVeterinary(slot.getVeterinary());
         appt.setPet(pet);
+        appt.setAppointmentId(genAppointmentId());
 
         Appointment saved = appointmentRepository.save(appt);
         return appointmentMapper.toResponse(saved);
     }
+
+    private String genAppointmentId() {
+        return "APT" + UUID.randomUUID().toString().replace("-", "").substring(0, 17);
+    }
+
 }
