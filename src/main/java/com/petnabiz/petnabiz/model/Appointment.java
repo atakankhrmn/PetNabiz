@@ -29,6 +29,9 @@ public class Appointment {
     @JoinColumn(name = "vet_id",nullable = false)
     private Veterinary veterinary;
 
+    @Column(nullable = false)
+    private Long slotId;
+
 
     public Appointment() {}
 
@@ -89,5 +92,13 @@ public class Appointment {
 
     public void setVeterinary(Veterinary veterinary) {
         this.veterinary = veterinary;
+    }
+
+    public Long getSlotId() {
+        return slotId;
+    }
+
+    public void setSlot(Long SlotId) {
+        this.slotId = SlotId;
     }
 }

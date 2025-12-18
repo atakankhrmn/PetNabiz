@@ -115,7 +115,7 @@ public class SlotServiceImpl implements SlotService {
 
     @Override
     @Transactional
-    public AppointmentResponseDTO bookSlot(Long slotId, String petId) {
+    public AppointmentResponseDTO bookSlot(Long slotId, String petId,String reason) {
 
         if (petId == null || petId.isBlank()) {
             throw new IllegalArgumentException("petId zorunlu.");
@@ -142,6 +142,8 @@ public class SlotServiceImpl implements SlotService {
         appt.setVeterinary(slot.getVeterinary());
         appt.setPet(pet);
         appt.setAppointmentId(genAppointmentId());
+        appt.setReason(reason);
+        appt.setSlot(slotId);
 
         Appointment saved = appointmentRepository.save(appt);
         return appointmentMapper.toResponse(saved);

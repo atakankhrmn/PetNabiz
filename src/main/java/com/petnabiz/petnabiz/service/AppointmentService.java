@@ -22,10 +22,10 @@ public interface AppointmentService {
 
     AppointmentResponseDTO updateAppointment(String appointmentId, AppointmentUpdateRequestDTO dto);
 
-    void deleteAppointment(String appointmentId);
-
     boolean isPetOwnedBy(String ownerEmail, String petId);
     boolean isAppointmentOwnedBy(String ownerEmail, String appointmentId);
     List<AppointmentResponseDTO> getMyAppointments(String ownerEmail);
+
+    public void cancelAppointment(String appointmentId);
 
 }

@@ -13,7 +13,7 @@ public interface SlotService {
 
     List<SlotResponseDTO> getAvailableSlots(String vetId, LocalDate date);
 
-    AppointmentResponseDTO bookSlot(Long slotId, String petId);
+    AppointmentResponseDTO bookSlot(Long slotId, String petId,String reason);
 
     // Security helpers (SpEL için)
     boolean isClinicOwnerOfVet(String clinicEmail, String vetId);

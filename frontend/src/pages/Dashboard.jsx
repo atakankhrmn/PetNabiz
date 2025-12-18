@@ -7,6 +7,8 @@ import AdminProfile from "./admin/AdminProfile";
 import ClinicProfile from "./clinic/ClinicProfile.jsx";
 import OwnerProfile from "./owner/OwnerProfile";
 import { http } from "../api/http";
+import BookAppointment from "./owner/BookAppointment";
+import MyAppointments from "./owner/MyAppointments";
 
 export default function Dashboard({ me, onLogout }) {
     const [ownerInfo, setOwnerInfo] = useState(null);
@@ -113,7 +115,11 @@ function getMenu(role) {
     switch(role) {
         case "ROLE_ADMIN": return [{ key: "admin", label: "⚙️ Sistem Yönetimi" }];
         case "ROLE_CLINIC": return [{ key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" }];
-        case "ROLE_OWNER": return [{ key: "owner_pets", label: "🐾 Can Dostlarım" }];
+        case "ROLE_OWNER": return [
+            { key: "owner_pets", label: "🐾 Can Dostlarım" },
+            { key: "book_appointment", label: "🗓️ Randevu Al" },
+            { key: "my_appointments", label: "📋 Randevularım" } // Yeni
+        ];
         default: return [{ key: "home", label: "Ana Sayfa" }];
     }
 }
@@ -130,7 +136,11 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
     // 2. Fonksiyonel Sayfalar
     if (role === "ROLE_ADMIN" && page === "admin") return <AdminPanel />;
     if (role === "ROLE_CLINIC" && page === "clinic_vets") return <Veterinaries />;
-    if (role === "ROLE_OWNER" && page === "owner_pets") return <Pets me={me} />;
+    if (role === "ROLE_OWNER") {
+        if (page === "owner_pets") return <Pets me={me} />;
+        if (page === "book_appointment") return <BookAppointment me={me} />; // Bunu ekle
+        if (page === "my_appointments") return <MyAppointments me={me} />;
+    }
 
     return <div style={{ textAlign: "center", padding: 50, color: "#64748b" }}>Sayfa Yükleniyor...</div>;
 }

@@ -18,6 +18,14 @@ public class AppointmentMapper {
         dto.setPetId(a.getPet() != null ? a.getPet().getPetId() : null);
         dto.setVetId(a.getVeterinary() != null ? a.getVeterinary().getVetId() : null);
 
+        String fullName = a.getVeterinary().getFirstName() + " " + a.getVeterinary().getLastName();
+        dto.setVetName(a.getVeterinary() != null ? fullName: null);
+
+        String clinicName = a.getVeterinary().getClinic().getName();
+        dto.setClinicName(a.getVeterinary() != null ? clinicName: null);
+
+        String petName = a.getPet().getName();
+        dto.setPetName(a.getVeterinary() != null ? petName: null);
         return dto;
     }
 }

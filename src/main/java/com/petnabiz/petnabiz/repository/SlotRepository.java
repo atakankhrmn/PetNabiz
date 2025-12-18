@@ -26,6 +26,8 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
             LocalTime time
     );
 
+    Optional<Slot> findBySlotId(Long slotId);
+
     // Slotu atomik şekilde rezerve et (çakışma engelli)
     @Modifying
     @Query("""

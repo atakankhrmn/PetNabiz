@@ -114,15 +114,14 @@ public class AppointmentController {
     }
 
     /**
-     * 8) Appointment sil
-     * - ADMIN: silebilir
-     * - CLINIC: genelde silebilir (iş kuralına göre)
+     * 8) Appointment iptal et (slot'u tekrar boşaltır)
+     * - ADMIN/CLINIC: iptal edebilir
      * - OWNER: sadece kendininki
      */
-    @DeleteMapping("/{appointmentId}")
+    @PostMapping("/{appointmentId}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @appointmentService.isAppointmentOwnedBy(authentication.name, #appointmentId))")
-    public ResponseEntity<Void> deleteAppointment(@PathVariable String appointmentId) {
-        appointmentService.deleteAppointment(appointmentId);
+    public ResponseEntity<Void> cancelAppointment(@PathVariable String appointmentId) {
+        appointmentService.cancelAppointment(appointmentId);
         return ResponseEntity.noContent().build();
     }
 }

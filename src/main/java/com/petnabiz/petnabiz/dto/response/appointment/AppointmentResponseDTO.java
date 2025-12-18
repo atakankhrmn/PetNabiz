@@ -14,4 +14,9 @@ public class AppointmentResponseDTO {
     private String vetId;
     private String petId;
     private String reason;
+
+    //YENI EKLENDİ MAPLENECEK
+    private String vetName;
+    private String petName;
+    private String clinicName;
 }

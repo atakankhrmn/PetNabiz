@@ -85,9 +85,10 @@ public class SlotController {
     public ResponseEntity<?> bookSlot(
             @PathVariable Long slotId,
             @RequestBody SlotBookRequestDTO req
+
     ) {
         try {
-            AppointmentResponseDTO created = slotService.bookSlot(slotId, req.getPetId());
+            AppointmentResponseDTO created = slotService.bookSlot(slotId, req.getPetId(), req.getReason());
             return ResponseEntity.ok(created);
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(
