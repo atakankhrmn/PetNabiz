@@ -12,4 +12,10 @@ public class SlotResponseDTO {
     private LocalDate date;
     private LocalTime time;
     private boolean booked;
+
+    //NEWLY ADDED TO BE MAPPED
+    private String vetName;
+    private String clinicName;
+    private String clinicAddress;
+
 }

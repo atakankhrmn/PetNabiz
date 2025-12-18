@@ -59,6 +59,23 @@ public class SlotController {
     }
 
     /**
+     * Available by date range + city + district:
+     * - herkes (login) görebilir (admin/clinic/owner)
+     */
+    @GetMapping("/available/range")
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC','OWNER')")
+    public ResponseEntity<List<SlotResponseDTO>> getAvailableSlotsByDateRangeCityDistrict(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam String city,
+            @RequestParam String district
+    ) {
+        return ResponseEntity.ok(
+                slotService.getAvailableSlotsByDateRangeCityDistrict(startDate, endDate, city, district)
+        );
+    }
+
+    /**
      * Book:
      * - ADMIN her şey
      * - OWNER sadece kendi pet'i ile book edebilir

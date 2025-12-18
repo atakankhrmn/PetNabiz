@@ -151,4 +151,31 @@ public class SlotServiceImpl implements SlotService {
         return "APT" + UUID.randomUUID().toString().replace("-", "").substring(0, 17);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<SlotResponseDTO> getAvailableSlotsByDateRangeCityDistrict(
+            LocalDate startDate,
+            LocalDate endDate,
+            String city,
+            String district
+    ) {
+        if (startDate == null || endDate == null || city == null || district == null) {
+            throw new IllegalArgumentException("Parametreler boş olamaz");
+        }
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("endDate startDate'ten önce olamaz");
+        }
+
+        return slotRepository
+                .findAvailableSlotsByDateRangeCityDistrict(
+                        startDate,
+                        endDate,
+                        city.trim(),
+                        district.trim()
+                )
+                .stream()
+                .map(slotMapper::toResponse)
+                .toList();
+    }
+
 }

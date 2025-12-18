@@ -1,53 +1,106 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminPanel from "./admin/AdminPanel";
 import Pets from "./owner/Pets";
 import Veterinaries from "./clinic/Veterinaries";
+// YENİ ROL BAZLI PROFİL İMPORTLARI
+import AdminProfile from "./admin/AdminProfile";
+import ClinicProfile from "./clinic/ClinicProfile.jsx";
+import OwnerProfile from "./owner/OwnerProfile";
+import { http } from "../api/http";
 
 export default function Dashboard({ me, onLogout }) {
+    const [ownerInfo, setOwnerInfo] = useState(null);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(true);
     const role = me?.role || "UNKNOWN";
     const menu = getMenu(role);
     const [page, setPage] = useState(menu[0]?.key || "home");
 
-    // ROLE_ kısmını temizleyen ve ismi formatlayan yardımcılar
+    useEffect(() => {
+        // Sadece Owner rolü için ek detayları çekiyoruz
+        if (role === "ROLE_OWNER") {
+            http.get("/api/pet-owners/me")
+                .then(res => setOwnerInfo(res.data))
+                .catch(err => console.error("Profil bilgisi alınamadı", err));
+        }
+    }, [role]);
+
+    // Sağ üstte görünecek isim ve temizlenmiş rol gösterimi
+    const displayUserName = ownerInfo ? `${ownerInfo.firstName} ${ownerInfo.lastName}` : me?.email;
     const cleanRole = role.replace("ROLE_", "");
-    const fullName = me?.firstName ? `${me.firstName} ${me.lastName || ""}` : me?.email;
 
     return (
-        <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
-            {/* Topbar */}
+        <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column" }}>
+            {/* TOPBAR */}
             <div style={topbarStyle}>
-                <div style={{ fontWeight: 900, fontSize: 20, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{color: "#fff"}}>✚</span> PetNabiz
+                <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+                    <button onClick={() => setIsDrawerOpen(!isDrawerOpen)} style={hamburgerBtnStyle}>
+                        {isDrawerOpen ? "◀" : "☰"}
+                    </button>
+                    <div style={{ fontWeight: 900, fontSize: 22, display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ background: "white", color: "#0284c7", padding: "2px 8px", borderRadius: "8px" }}>✚</span>
+                        PetNabiz
+                    </div>
                 </div>
-                <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
+
+                <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
                     <div style={{ textAlign: "right" }}>
-                        {/* Email yerine Hoş geldin + İsim Soyisim */}
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>Hoş geldin, {fullName}</div>
-                        {/* ROLE_ temizlenmiş hali */}
-                        <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 800 }}>{cleanRole}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>{displayUserName}</div>
+                        <div style={{ fontSize: 11, opacity: 0.9, color: "#e0f2fe", fontWeight: 800 }}>{cleanRole}</div>
                     </div>
                     <button onClick={onLogout} style={logoutBtn}>Güvenli Çıkış</button>
                 </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "260px 1fr" }}>
-                {/* Sidebar */}
-                <div style={sidebarStyle}>
-                    <div style={{ padding: "20px 15px", color: "#64748b", fontSize: 12, fontWeight: 800, textTransform: "uppercase" }}>Yönetim Menüsü</div>
-                    {menu.map((m) => (
-                        <button key={m.key} onClick={() => setPage(m.key)} style={page === m.key ? activeMenuBtn : menuBtn}>
-                            {m.label}
-                        </button>
-                    ))}
+            <div style={{ display: "flex", flex: 1, position: "relative", overflow: "hidden" }}>
+
+                {/* DİNAMİK SIDE DRAWER - İçeriği iten Side Navigation */}
+                <div
+                    style={{
+                        ...drawerContentStyle,
+                        width: isDrawerOpen ? "280px" : "0px",
+                        opacity: isDrawerOpen ? 1 : 0,
+                        visibility: isDrawerOpen ? "visible" : "hidden",
+                        borderRight: isDrawerOpen ? "1px solid #e2e8f0" : "none"
+                    }}
+                >
+                    <div style={{ padding: "20px", width: "280px" }}>
+                        <div style={sidebarLabel}>Yönetim Menüsü</div>
+                        <div style={{ marginTop: "10px" }}>
+                            {menu.map((m) => (
+                                <button
+                                    key={m.key}
+                                    onClick={() => setPage(m.key)}
+                                    style={page === m.key ? activeMenuBtn : menuBtn}
+                                >
+                                    {m.label}
+                                </button>
+                            ))}
+                            <div style={{ margin: "20px 10px", borderTop: "1px solid #f1f5f9" }}></div>
+
+                            {/* Ortak Profil Butonu */}
+                            <button
+                                onClick={() => setPage("profile")}
+                                style={page === "profile" ? activeMenuBtn : menuBtn}
+                            >
+                                👤 Profil Ayarlarım
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Main Content */}
-                <div style={{ padding: 30 }}>
+                {/* ANA İÇERİK ALANI */}
+                <div style={{ flex: 1, padding: "30px", transition: "all 0.3s ease-in-out"}}>
                     <div style={contentCardStyle}>
-                        <h2 style={{ marginTop: 0, color: "#1e293b", fontSize: 18 }}>{menu.find(x => x.key === page)?.label}</h2>
-                        <hr style={{ border: "0.5px solid #f1f5f9", margin: "15px 0" }} />
-                        {/* me objesini renderPage fonksiyonuna iletiyoruz */}
-                        {renderPage(page, role, me)}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                            <h2 style={{ margin: 0, color: "#1e293b", fontSize: 20 }}>
+                                {page === "profile" ? "Hesap ve Güvenlik" : menu.find(x => x.key === page)?.label}
+                            </h2>
+                            <div style={breadcrumbStyle}>Dashboard / {page === "profile" ? "Profil" : "Yönetim"}</div>
+                        </div>
+                        <hr style={{ border: "0.5px solid #f1f5f9", marginBottom: 25 }} />
+
+                        {/* Sayfa İçeriği Render */}
+                        {renderPage(page, role, me, ownerInfo, setOwnerInfo)}
                     </div>
                 </div>
             </div>
@@ -55,24 +108,68 @@ export default function Dashboard({ me, onLogout }) {
     );
 }
 
+// Menü Elemanları Tanımı
 function getMenu(role) {
-    if (role === "ROLE_ADMIN") return [{ key: "admin", label: "Sistem Yönetimi" }];
-    if (role === "ROLE_CLINIC") return [{ key: "clinic_vets", label: "Veteriner Hekimler" }];
-    if (role === "ROLE_OWNER") return [{ key: "owner_pets", label: "Can Dostlarım" }];
-    return [{ key: "home", label: "Ana Sayfa" }];
+    switch(role) {
+        case "ROLE_ADMIN": return [{ key: "admin", label: "⚙️ Sistem Yönetimi" }];
+        case "ROLE_CLINIC": return [{ key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" }];
+        case "ROLE_OWNER": return [{ key: "owner_pets", label: "🐾 Can Dostlarım" }];
+        default: return [{ key: "home", label: "Ana Sayfa" }];
+    }
 }
 
-// me parametresini ekledik ki Pets bileşenine geçebilelim
-function renderPage(page, role, me) {
+// MODÜLER RENDER MANTIĞI
+function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
+    // 1. Profil Sayfaları (Role göre ayrılmış)
+    if (page === "profile") {
+        if (role === "ROLE_ADMIN") return <AdminProfile me={me} />;
+        if (role === "ROLE_CLINIC") return <ClinicProfile me={me} />;
+        if (role === "ROLE_OWNER") return <OwnerProfile me={me} ownerInfo={ownerInfo} setOwnerInfo={setOwnerInfo} />;
+    }
+
+    // 2. Fonksiyonel Sayfalar
     if (role === "ROLE_ADMIN" && page === "admin") return <AdminPanel />;
     if (role === "ROLE_CLINIC" && page === "clinic_vets") return <Veterinaries />;
     if (role === "ROLE_OWNER" && page === "owner_pets") return <Pets me={me} />;
-    return <div>Sayfa Hazırlanıyor...</div>;
+
+    return <div style={{ textAlign: "center", padding: 50, color: "#64748b" }}>Sayfa Yükleniyor...</div>;
 }
 
-const topbarStyle = { height: 65, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 25px", background: "#0284c7", color: "white", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" };
-const logoutBtn = { padding: "8px 15px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "white", fontWeight: 700, cursor: "pointer" };
-const sidebarStyle = { background: "white", borderRight: "1px solid #e2e8f0", minHeight: "calc(100vh - 65px)", padding: 10 };
-const menuBtn = { width: "100%", textAlign: "left", padding: "12px 15px", borderRadius: 10, border: "none", background: "transparent", color: "#64748b", cursor: "pointer", fontWeight: 600, marginBottom: 5 };
-const activeMenuBtn = { ...menuBtn, background: "#f0f9ff", color: "#0284c7" };
-const contentCardStyle = { background: "white", borderRadius: 15, padding: 25, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0" };
+// --- TASARIM STİLLERİ ---
+const topbarStyle = {
+    position: "sticky", // Eklendi
+    top: 0,             // Eklendi
+    height: 70,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 30px",
+    background: "linear-gradient(90deg, #0284c7 0%, #0369a1 100%)",
+    color: "white",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    zIndex: 1200
+};
+
+const hamburgerBtnStyle = {
+    background: "rgba(255,255,255,0.2)", border: "none", color: "white", fontSize: "18px",
+    cursor: "pointer", width: "40px", height: "40px", borderRadius: "10px",
+    display: "flex", alignItems: "center", justifyContent: "center", transition: "0.2s"
+};
+
+const drawerContentStyle = {
+    position: "sticky",      // Eklendi
+    top: 0,                 // Eklendi (Topbar yüksekliği 70 olduğu için)
+    height: "calc(100vh - 70px)",
+    background: "white",
+    transition: "all 0.3s ease-in-out",
+    overflow: "hidden", // Sidebar çok uzunsa scroll istersen "auto" yapabilirsin
+    display: "flex",
+    flexDirection: "column"
+};
+
+const logoutBtn = { padding: "8px 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.1)", color: "white", fontWeight: 700, cursor: "pointer" };
+const sidebarLabel = { color: "#94a3b8", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" };
+const menuBtn = { width: "100%", textAlign: "left", padding: "14px 20px", borderRadius: 12, border: "none", background: "transparent", color: "#64748b", cursor: "pointer", fontWeight: 600, marginBottom: 5, fontSize: "15px" };
+const activeMenuBtn = { ...menuBtn, background: "#eff6ff", color: "#0284c7" };
+const contentCardStyle = { background: "white", borderRadius: 20, padding: "30px", boxShadow: "0 4px 20px rgba(0,0,0,0.03)", border: "1px solid #e2e8f0", minHeight: "75vh" };
+const breadcrumbStyle = { fontSize: "12px", color: "#94a3b8", fontWeight: 500 };
