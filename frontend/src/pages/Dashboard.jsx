@@ -8,6 +8,10 @@ export default function Dashboard({ me, onLogout }) {
     const menu = getMenu(role);
     const [page, setPage] = useState(menu[0]?.key || "home");
 
+    // ROLE_ kısmını temizleyen ve ismi formatlayan yardımcılar
+    const cleanRole = role.replace("ROLE_", "");
+    const fullName = me?.firstName ? `${me.firstName} ${me.lastName || ""}` : me?.email;
+
     return (
         <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
             {/* Topbar */}
@@ -17,8 +21,10 @@ export default function Dashboard({ me, onLogout }) {
                 </div>
                 <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
                     <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>{me?.email}</div>
-                        <div style={{ fontSize: 11, opacity: 0.8 }}>{role}</div>
+                        {/* Email yerine Hoş geldin + İsim Soyisim */}
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>Hoş geldin, {fullName}</div>
+                        {/* ROLE_ temizlenmiş hali */}
+                        <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 800 }}>{cleanRole}</div>
                     </div>
                     <button onClick={onLogout} style={logoutBtn}>Güvenli Çıkış</button>
                 </div>
@@ -40,7 +46,8 @@ export default function Dashboard({ me, onLogout }) {
                     <div style={contentCardStyle}>
                         <h2 style={{ marginTop: 0, color: "#1e293b", fontSize: 18 }}>{menu.find(x => x.key === page)?.label}</h2>
                         <hr style={{ border: "0.5px solid #f1f5f9", margin: "15px 0" }} />
-                        {renderPage(page, role)}
+                        {/* me objesini renderPage fonksiyonuna iletiyoruz */}
+                        {renderPage(page, role, me)}
                     </div>
                 </div>
             </div>
@@ -55,10 +62,11 @@ function getMenu(role) {
     return [{ key: "home", label: "Ana Sayfa" }];
 }
 
-function renderPage(page, role) {
+// me parametresini ekledik ki Pets bileşenine geçebilelim
+function renderPage(page, role, me) {
     if (role === "ROLE_ADMIN" && page === "admin") return <AdminPanel />;
     if (role === "ROLE_CLINIC" && page === "clinic_vets") return <Veterinaries />;
-    if (role === "ROLE_OWNER" && page === "owner_pets") return <Pets />;
+    if (role === "ROLE_OWNER" && page === "owner_pets") return <Pets me={me} />;
     return <div>Sayfa Hazırlanıyor...</div>;
 }
 

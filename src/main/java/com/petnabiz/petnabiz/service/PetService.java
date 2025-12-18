@@ -25,6 +25,8 @@ public interface PetService {
 
     PetResponseDTO updatePet(String petId, PetUpdateRequestDTO dto);
 
+    String uploadPetPhoto(String petId, org.springframework.web.multipart.MultipartFile file);
+
     void deletePet(String petId);
 
     // Security helper for SpEL

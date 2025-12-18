@@ -34,6 +34,8 @@ public class SecurityConfig {
                 // Auth endpoints (login/register vs) -> açık
                 .requestMatchers("/auth/**", "/api/auth/**").permitAll()
 
+                .requestMatchers("/uploads/**").permitAll()
+
                 /**
                  * CLINIC APPLICATIONS
                  * - create (public): permitAll

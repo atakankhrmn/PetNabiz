@@ -189,6 +189,41 @@ public class PetServiceImpl implements PetService {
         return petMapper.toResponse(saved);
     }
 
+    // PetServiceImpl.java içine eklenecek yeni metodlar
+
+    private final String uploadDir = "uploads/pets/";
+
+    @Override
+    @Transactional
+    public String uploadPetPhoto(String petId, org.springframework.web.multipart.MultipartFile file) {
+        // 1. Pet kontrolü
+        Pet pet = petRepository.findByPetId(petId)
+                .orElseThrow(() -> new EntityNotFoundException("Pet bulunamadı: " + petId));
+
+        try {
+            // 2. Klasör yoksa oluştur
+            java.io.File directory = new java.io.File(uploadDir);
+            if (!directory.exists()) directory.mkdirs();
+
+            // 3. Benzersiz dosya adı oluştur (Örn: petid_timestamp.jpg)
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            String fileName = petId + "_" + System.currentTimeMillis() + extension;
+
+            // 4. Dosyayı diske kaydet
+            java.nio.file.Path filePath = java.nio.file.Paths.get(uploadDir + fileName);
+            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            // 5. Veritabanında URL'i güncelle (Sadece dosya adını saklamak yeterli)
+            pet.setPhotoUrl(fileName);
+            petRepository.save(pet);
+
+            return fileName;
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Dosya yüklenirken hata oluştu: " + e.getMessage());
+        }
+    }
+
     @Override
     @Transactional
     public void deletePet(String petId) {
