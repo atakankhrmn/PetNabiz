@@ -240,17 +240,17 @@ export default function Pets({ me }) {
                                                                     borderLeft: "3px solid #0284c7",
                                                                     boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
                                                                 }}>
-                                                                    <div style={{ fontSize: "13px", fontWeight: "700", color: "#1e293b" }}>
-                                                                        {m.medicineName}
+                                                                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#1e293b" }}>
+                                                                        {m.medicineName}  <b style={{ fontSize: "12px", fontWeight: "700", color: "#01193d", padding: "25px"}}> Tür: {m.medicineType} </b>
                                                                     </div>
-                                                                    <div style={{ fontSize: "11px", color: "#64748b", margin: "3px 0", display: "flex", alignItems: "center", gap: "8px" }}>
+                                                                    <div style={{ fontSize: "12px", color: "#64748b", margin: "3px 0", display: "flex", alignItems: "center", gap: "8px" }}>
                                                                         <span>🗓️ Start Date: {m.start} / End Date: {m.end}</span>
 
                                                                         {m.end && (
                                                                             <span style={{
                                                                                 padding: "2px 6px",
                                                                                 borderRadius: "4px",
-                                                                                fontSize: "9px",
+                                                                                fontSize: "10px",
                                                                                 fontWeight: "900",
                                                                                 color: "white",
                                                                                 // Bugünün tarihini saatleri sıfırlayarak alıyoruz

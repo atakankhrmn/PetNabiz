@@ -13,10 +13,16 @@ public interface SlotService {
 
     List<SlotResponseDTO> getAvailableSlots(String vetId, LocalDate date);
 
+    List<SlotResponseDTO> getAllSlots(String vetId, LocalDate date);
+
+    void deleteSlot(Long slotId);
+
     AppointmentResponseDTO bookSlot(Long slotId, String petId,String reason);
 
     // Security helpers (SpEL için)
     boolean isClinicOwnerOfVet(String clinicEmail, String vetId);
+
+    boolean isClinicOwnerOfSlot(String email, Long slotId);
 
     boolean isPetOwnedBy(String ownerEmail, String petId);
 

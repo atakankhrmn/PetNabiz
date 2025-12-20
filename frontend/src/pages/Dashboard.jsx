@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import AdminPanel from "./admin/AdminPanel";
 import Pets from "./owner/Pets";
 import Veterinaries from "./clinic/Veterinaries";
+import SlotManager from "./clinic/SlotManager"; // <-- 1. YENİ İMPORT
 // YENİ ROL BAZLI PROFİL İMPORTLARI
 import AdminProfile from "./admin/AdminProfile";
 import ClinicProfile from "./clinic/ClinicProfile.jsx";
@@ -15,7 +16,8 @@ export default function Dashboard({ me, onLogout }) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(true);
     const role = me?.role || "UNKNOWN";
     const menu = getMenu(role);
-    const [page, setPage] = useState(menu[0]?.key || "home");
+    // Eğer menü boş gelirse veya sayfa yenilenirse default olarak ilk elemanı seç
+    const [page, setPage] = useState(menu[0]?.key || "profile");
 
     useEffect(() => {
         // Sadece Owner rolü için ek detayları çekiyoruz
@@ -55,7 +57,7 @@ export default function Dashboard({ me, onLogout }) {
 
             <div style={{ display: "flex", flex: 1, position: "relative", overflow: "hidden" }}>
 
-                {/* DİNAMİK SIDE DRAWER - İçeriği iten Side Navigation */}
+                {/* DİNAMİK SIDE DRAWER */}
                 <div
                     style={{
                         ...drawerContentStyle,
@@ -91,7 +93,7 @@ export default function Dashboard({ me, onLogout }) {
                 </div>
 
                 {/* ANA İÇERİK ALANI */}
-                <div style={{ flex: 1, padding: "30px", transition: "all 0.3s ease-in-out"}}>
+                <div style={{ flex: 1, padding: "30px", transition: "all 0.3s ease-in-out", overflowY: "auto", maxHeight: "calc(100vh - 70px)" }}>
                     <div style={contentCardStyle}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                             <h2 style={{ margin: 0, color: "#1e293b", fontSize: 20 }}>
@@ -114,19 +116,25 @@ export default function Dashboard({ me, onLogout }) {
 function getMenu(role) {
     switch(role) {
         case "ROLE_ADMIN": return [{ key: "admin", label: "⚙️ Sistem Yönetimi" }];
-        case "ROLE_CLINIC": return [{ key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" }];
+
+        // <-- 2. CLINIC ROLÜ İÇİN YENİ MENÜ ELEMANI
+        case "ROLE_CLINIC": return [
+            { key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" },
+            { key: "clinic_slots", label: "📅 Randevu Takvimi" }
+        ];
+
         case "ROLE_OWNER": return [
             { key: "owner_pets", label: "🐾 Can Dostlarım" },
             { key: "book_appointment", label: "🗓️ Randevu Al" },
-            { key: "my_appointments", label: "📋 Randevularım" } // Yeni
+            { key: "my_appointments", label: "📋 Randevularım" }
         ];
-        default: return [{ key: "home", label: "Ana Sayfa" }];
+        default: return [];
     }
 }
 
 // MODÜLER RENDER MANTIĞI
 function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
-    // 1. Profil Sayfaları (Role göre ayrılmış)
+    // 1. Profil Sayfaları
     if (page === "profile") {
         if (role === "ROLE_ADMIN") return <AdminProfile me={me} />;
         if (role === "ROLE_CLINIC") return <ClinicProfile me={me} />;
@@ -135,10 +143,16 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
 
     // 2. Fonksiyonel Sayfalar
     if (role === "ROLE_ADMIN" && page === "admin") return <AdminPanel />;
-    if (role === "ROLE_CLINIC" && page === "clinic_vets") return <Veterinaries />;
+
+    // <-- 3. CLINIC SAYFALARI RENDER MANTIĞI
+    if (role === "ROLE_CLINIC") {
+        if (page === "clinic_vets") return <Veterinaries />;
+        if (page === "clinic_slots") return <SlotManager />;
+    }
+
     if (role === "ROLE_OWNER") {
         if (page === "owner_pets") return <Pets me={me} />;
-        if (page === "book_appointment") return <BookAppointment me={me} />; // Bunu ekle
+        if (page === "book_appointment") return <BookAppointment me={me} />;
         if (page === "my_appointments") return <MyAppointments me={me} />;
     }
 
@@ -147,8 +161,8 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
 
 // --- TASARIM STİLLERİ ---
 const topbarStyle = {
-    position: "sticky", // Eklendi
-    top: 0,             // Eklendi
+    position: "sticky",
+    top: 0,
     height: 70,
     display: "flex",
     alignItems: "center",
@@ -167,12 +181,12 @@ const hamburgerBtnStyle = {
 };
 
 const drawerContentStyle = {
-    position: "sticky",      // Eklendi
-    top: 0,                 // Eklendi (Topbar yüksekliği 70 olduğu için)
+    position: "sticky",
+    top: 0,
     height: "calc(100vh - 70px)",
     background: "white",
     transition: "all 0.3s ease-in-out",
-    overflow: "hidden", // Sidebar çok uzunsa scroll istersen "auto" yapabilirsin
+    overflow: "hidden",
     display: "flex",
     flexDirection: "column"
 };

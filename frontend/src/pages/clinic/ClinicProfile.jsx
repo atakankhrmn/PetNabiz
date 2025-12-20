@@ -6,7 +6,6 @@ export default function ClinicProfile({ me }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // ClinicController.java @GetMapping("/my") kullanarak verileri çekiyoruz
         http.get("/api/clinics/my")
             .then(res => setClinic(res.data))
             .catch(err => console.error("Klinik verisi alınamadı", err))
@@ -33,13 +32,15 @@ export default function ClinicProfile({ me }) {
 
             {/* Sağ Taraf: Veteriner Özet Listesi */}
             <div style={vetSidePaneStyle}>
-                <div style={sectionHeaderStyle}>🩺 Veterinerlerimiz</div>
+                <div style={sectionHeaderStyle}>🩺 Veteriner Hekimlerimiz</div>
                 <div style={{ display: "grid", gap: "10px" }}>
                     {clinic?.veterinaries && clinic.veterinaries.length > 0 ? (
                         clinic.veterinaries.map(vet => (
                             <div key={vet.vetId} style={vetCardMini}>
-                                <div style={{ fontWeight: "700", color: "#0284c7" }}>{vet.name}</div>
-                                <div style={{ fontSize: "11px", color: "#64748b" }}>{vet.specialization || "Genel Cerrah"}</div>
+                                {/* Sadece isim alanı bırakıldı, specialization silindi */}
+                                <div style={{ fontWeight: "700", color: "#0284c7" }}>
+                                    {vet.firstName} {vet.lastName}
+                                </div>
                             </div>
                         ))
                     ) : (
@@ -59,7 +60,8 @@ const boxStyle = { display: "flex", flexDirection: "column", gap: "4px" };
 const smallLabel = { fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase" };
 const infoValue = { fontSize: "14px", fontWeight: "600", color: "#334155" };
 const vetSidePaneStyle = { background: "#f8fafc", padding: "20px", borderRadius: "15px", border: "1px solid #e2e8f0", alignSelf: "start" };
-const vetCardMini = { background: "white", padding: "10px", borderRadius: "10px", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" };
+// vetCardMini stilini biraz daha sadeleştirmek isteyebilirsin, padding'i kıstım:
+const vetCardMini = { background: "white", padding: "12px", borderRadius: "8px", border: "1px solid #cbd5e1", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" };
 const noDataStyle = { fontSize: "12px", color: "#94a3b8", textAlign: "center", padding: "20px" };
 const hintStyle = { fontSize: "10px", color: "#64748b", marginTop: "15px", fontStyle: "italic" };
 const loadingStyle = { padding: "20px", color: "#64748b" };

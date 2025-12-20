@@ -59,6 +59,31 @@ public class SlotController {
     }
 
     /**
+     * All:
+     * - herkes (login) görebilir (admin/clinic/owner)
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @slotService.isClinicOwnerOfVet(authentication.name, #vetId))")
+    public ResponseEntity<List<SlotResponseDTO>> getAllSlots(
+            @RequestParam String vetId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(slotService.getAllSlots(vetId, date));
+    }
+
+    /**
+     * Slot Silme:
+     * - ADMIN her slotu silebilir.
+     * - CLINIC sadece kendi bünyesindeki veterinerin slotunu silebilir.
+     */
+    @DeleteMapping("/{slotId}")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @slotService.isClinicOwnerOfSlot(authentication.name, #slotId))")
+    public ResponseEntity<Void> deleteSlot(@PathVariable Long slotId) {
+        slotService.deleteSlot(slotId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Available by date range + city + district:
      * - herkes (login) görebilir (admin/clinic/owner)
      */

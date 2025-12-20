@@ -4,10 +4,7 @@ import com.petnabiz.petnabiz.dto.response.appointment.AppointmentResponseDTO;
 import com.petnabiz.petnabiz.dto.response.slot.SlotResponseDTO;
 import com.petnabiz.petnabiz.mapper.AppointmentMapper;
 import com.petnabiz.petnabiz.mapper.SlotMapper;
-import com.petnabiz.petnabiz.model.Appointment;
-import com.petnabiz.petnabiz.model.Pet;
-import com.petnabiz.petnabiz.model.Slot;
-import com.petnabiz.petnabiz.model.Veterinary;
+import com.petnabiz.petnabiz.model.*;
 import com.petnabiz.petnabiz.repository.AppointmentRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.repository.SlotRepository;
@@ -114,6 +111,56 @@ public class SlotServiceImpl implements SlotService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<SlotResponseDTO> getAllSlots(String vetId, LocalDate date) {
+        return slotRepository.findByVeterinary_VetIdAndDate(vetId, date)
+                .stream()
+                .map(slotMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void deleteSlot(Long slotId) {
+        Slot slot = slotRepository.findById(slotId)
+                .orElseThrow(() -> new EntityNotFoundException("Slot bulunamadı id: " + slotId));
+
+        // ÖNEMLİ KONTROL: Eğer slot doluysa silinmesine izin verme (veya önce randevuyu iptal ettir)
+        if (slot.isBooked()) {
+            throw new IllegalStateException("Bu slot dolu (randevulu) olduğu için silinemez. Önce randevuyu iptal ediniz.");
+        }
+
+        slotRepository.delete(slot);
+    }
+
+    @Override
+    @Transactional
+    // 2) Güvenlik Kontrolü (Controller'daki @PreAuthorize için)
+    public boolean isClinicOwnerOfSlot(String email, Long slotId) {
+        // Slotu bul
+        Slot slot = slotRepository.findById(slotId).orElse(null);
+        if (slot == null) return false;
+
+        // Slotun sahibi olan veterineri bul
+        Veterinary vet = slot.getVeterinary();
+        if (vet == null || vet.getClinic() == null) return false;
+
+        // Veterinerin bağlı olduğu kliniği bul
+        Clinic clinic = vet.getClinic();
+
+        // Giriş yapan kullanıcının (email) bu kliniğin sahibi olup olmadığına bak
+        // User tablosunda clinic kullanıcısının email'i ile clinic tablosundaki email eşleşmeli
+        // Veya ClinicService üzerinden bir kontrol çağırabilirsin.
+        // Basitçe şöyle varsayıyorum: Clinic tablosunda user_id ile ilişki var.
+
+        // EĞER Clinic entity'sinde 'email' alanı varsa:
+        // return clinic.getEmail().equals(email);
+
+        // EĞER User tablosundan gidiyorsak (Senin yapına göre):
+        return clinic.getUser().getEmail().equals(email);
+    }
+
+    @Override
     @Transactional
     public AppointmentResponseDTO bookSlot(Long slotId, String petId,String reason) {
 
@@ -168,16 +215,27 @@ public class SlotServiceImpl implements SlotService {
             throw new IllegalArgumentException("endDate startDate'ten önce olamaz");
         }
 
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+
+        // 🔥 KRİTİK KISIM
+        if (startDate.isBefore(today)) {
+            startDate = today;
+        }
+
         return slotRepository
                 .findAvailableSlotsByDateRangeCityDistrict(
                         startDate,
                         endDate,
                         city.trim(),
-                        district.trim()
+                        district.trim(),
+                        today,
+                        now
                 )
                 .stream()
                 .map(slotMapper::toResponse)
                 .toList();
     }
+
 
 }
