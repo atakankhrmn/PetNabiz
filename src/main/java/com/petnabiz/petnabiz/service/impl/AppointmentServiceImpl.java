@@ -22,6 +22,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service("appointmentService") // @PreAuthorize içindeki @appointmentService için net bean adı
 public class AppointmentServiceImpl implements AppointmentService {
@@ -266,5 +267,31 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         // 4. Randevu kaydını siliyoruz.
         appointmentRepository.delete(appointment);
+    }
+
+    @Override
+    public String getClinicIdByAppointmentId(String appointmentId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Appointment bulunamadı id: " + appointmentId));
+
+        // İlişki zinciri: Appointment -> Veterinary -> Clinic -> ClinicId
+        return appointment.getVeterinary().getClinic().getClinicId();
+    }
+
+    @Override
+    @Transactional
+    public List<AppointmentResponseDTO> getUpcomingAppointmentsByClinicId(String clinicId) {
+        // 1. Tarihleri hesapla
+        LocalDate startDate = LocalDate.now(); // Bugün
+        LocalDate endDate = startDate.plusWeeks(2); // 14 gün sonrası
+
+        // 2. Veritabanından çek
+        List<Appointment> appointments = appointmentRepository
+                .findByVeterinary_Clinic_ClinicIdAndDateBetween(clinicId, startDate, endDate);
+
+        // 3. DTO'ya çevir ve döndür
+        return appointments.stream()
+                .map(appointmentMapper::toResponse)
+                .collect(Collectors.toList());
     }
 }

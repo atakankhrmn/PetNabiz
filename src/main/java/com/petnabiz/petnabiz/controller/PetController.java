@@ -37,8 +37,12 @@ public class PetController {
      * ADMIN: herhangi bir pet
      * OWNER: sadece kendi pet'i
      */
+    /**
+     * Pet Detaylarını Getir
+     */
     @GetMapping("/{petId}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('OWNER') and @petService.isPetOwnedBy(authentication.name, #petId))")
+    // AŞAĞIDAKİ SATIRA "hasRole('CLINIC')" EKLEDİĞİNDEN EMİN OL:
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CLINIC') or (hasRole('OWNER') and @petService.isPetOwnedBy(authentication.name, #petId))")
     public ResponseEntity<PetResponseDTO> getPetById(@PathVariable String petId) {
         return ResponseEntity.ok(petService.getPetById(petId));
     }

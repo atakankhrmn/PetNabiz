@@ -10,6 +10,7 @@ import OwnerProfile from "./owner/OwnerProfile";
 import { http } from "../api/http";
 import BookAppointment from "./owner/BookAppointment";
 import MyAppointments from "./owner/MyAppointments";
+import WeeklyAppointments from "./clinic/WeeklyAppointments"; // <-- YENİ
 
 export default function Dashboard({ me, onLogout }) {
     const [ownerInfo, setOwnerInfo] = useState(null);
@@ -120,7 +121,8 @@ function getMenu(role) {
         // <-- 2. CLINIC ROLÜ İÇİN YENİ MENÜ ELEMANI
         case "ROLE_CLINIC": return [
             { key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" },
-            { key: "clinic_slots", label: "📅 Randevu Takvimi" }
+            { key: "clinic_slots", label: "📅 Randevu Takvimi" },
+            { key: "weekly_appts", label: "🗓️ Bu Haftaki Randevular" } // <-- YENİ EKLENEN
         ];
 
         case "ROLE_OWNER": return [
@@ -148,6 +150,7 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
     if (role === "ROLE_CLINIC") {
         if (page === "clinic_vets") return <Veterinaries />;
         if (page === "clinic_slots") return <SlotManager />;
+        if (page === "weekly_appts") return <WeeklyAppointments/>
     }
 
     if (role === "ROLE_OWNER") {

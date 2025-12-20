@@ -83,4 +83,5 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             LocalDate endDate
     );
 
+
 }

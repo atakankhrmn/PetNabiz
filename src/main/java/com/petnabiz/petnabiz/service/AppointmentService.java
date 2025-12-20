@@ -28,4 +28,8 @@ public interface AppointmentService {
 
     public void cancelAppointment(String appointmentId);
 
+    public String getClinicIdByAppointmentId(String appointmentId);
+
+    public List<AppointmentResponseDTO> getUpcomingAppointmentsByClinicId(String clinicId);
+
 }

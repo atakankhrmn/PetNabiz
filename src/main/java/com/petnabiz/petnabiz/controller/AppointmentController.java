@@ -124,4 +124,28 @@ public class AppointmentController {
         appointmentService.cancelAppointment(appointmentId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * 9) Appointment ID vererek Clinic ID'sini getir.
+     * - Frontend'de randevu detayına bakarken kliniğe gitmek için gerekebilir.
+     * - ADMIN, CLINIC ve ilgili OWNER erişebilir.
+     */
+    @GetMapping("/{appointmentId}/clinic-id")
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @appointmentService.isAppointmentOwnedBy(authentication.name, #appointmentId))")
+    public ResponseEntity<String> getClinicIdByAppointmentId(@PathVariable String appointmentId) {
+        return ResponseEntity.ok(appointmentService.getClinicIdByAppointmentId(appointmentId));
+    }
+
+    /**
+     * 10) Bir kliniğin önümüzdeki 2 hafta (Bugün dahil) içindeki tüm randevularını getirir.
+     * - Kullanım: Dashboard'da veya takvimde ileriye dönük planlama için.
+     * - Erişim: Sadece o kliniğin sahibi (CLINIC) veya ADMIN.
+     */
+    @GetMapping("/clinic/{clinicId}/upcoming")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @clinicService.isClinicSelf(authentication.name, #clinicId))")
+    public ResponseEntity<List<AppointmentResponseDTO>> getUpcomingAppointmentsByClinic(@PathVariable String clinicId) {
+        return ResponseEntity.ok(appointmentService.getUpcomingAppointmentsByClinicId(clinicId));
+    }
+
+
 }

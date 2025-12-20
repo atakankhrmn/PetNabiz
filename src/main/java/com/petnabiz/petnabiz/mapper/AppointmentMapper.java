@@ -26,6 +26,9 @@ public class AppointmentMapper {
 
         String petName = a.getPet().getName();
         dto.setPetName(a.getVeterinary() != null ? petName: null);
+
+        String petOwnerName = a.getPet().getOwner().getFirstName() + " " + a.getPet().getOwner().getLastName();
+        dto.setPetOwnerName(a.getVeterinary() != null ? petOwnerName: null);
         return dto;
     }
 }

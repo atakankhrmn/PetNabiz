@@ -79,7 +79,7 @@ public class SecurityConfig {
                  * Controller: ADMIN tüm petler; OWNER /my, get/update/delete kendi pet’i (method’da check var)
                  * O yüzden burada ADMIN+OWNER yeter.
                  */
-                .requestMatchers("/api/pets/**").hasAnyRole("ADMIN", "OWNER")
+                .requestMatchers("/api/pets/**").hasAnyRole("ADMIN", "OWNER", "CLINIC")
 
                 /**
                  * SLOTS
