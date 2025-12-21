@@ -90,7 +90,24 @@ export default function AppointmentManagement() {
             const res = await http.get(`/api/appointments/clinic/${myClinicId}/history`, {
                 params: { startDate, endDate },
             });
-            setAppointments(res.data);
+
+            // Tarih ve Saat'e göre sıralama
+            const sortedData = res.data.sort((a, b) => {
+                // 1. Önce tarihleri karşılaştır
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+
+                // Eğer tarihler farklıysa, tarih farkını dön
+                if (dateA.getTime() !== dateB.getTime()) {
+                    return dateA - dateB;
+                }
+
+                // 2. Tarihler EŞİTSE saatleri (string olarak) karşılaştır
+                // "09:00", "14:30" gibi stringler alfabetik sıralamayla doğru çalışır
+                return a.time.localeCompare(b.time);
+            });
+
+            setAppointments(sortedData);
         } catch (error) {
             console.error("Arama hatası:", error);
             alert("Hata oluştu.");
@@ -156,7 +173,7 @@ export default function AppointmentManagement() {
     const switchToDetailView = async () => {
         if (!selectedPet?.petId) return;
 
-        const petSnapshot = selectedPet; // ✅ garanti
+        const petSnapshot = selectedPet
         const petId = petSnapshot.petId;
 
         setSelectedPet(null);
@@ -201,14 +218,6 @@ export default function AppointmentManagement() {
         if (!endDate) return true;
         return new Date(endDate) >= new Date().setHours(0, 0, 0, 0);
     };
-
-    // ✅ Sizde status field yok: iptal bilgisi UI’da sadece reason üzerinden anlaşılacak
-    // (Eğer backend iptal edince reason'ı "İPTAL" yapıyorsa bu çalışır.)
-    const isCancelledByReason = (appt) => {
-        const r = (appt?.reason || "").toString().trim().toUpperCase();
-        return r === "İPTAL" || r === "CANCELLED" || r.includes("İPTAL");
-    };
-
     // =================================================================================
     // RENDER: EĞER VIEW MODE AKTİFSE (DETAY SAYFASI)
     // =================================================================================
@@ -233,7 +242,6 @@ export default function AppointmentManagement() {
                             Klinik Yönetimi / Pet Detay /{" "}
                             <span style={{ color: "#0284c7" }}>{detailPet?.name}</span>
                         </div>
-
                         <HoverButton
                             onClick={copyDetailPetId}
                             baseStyle={copyBtnBase}
@@ -430,18 +438,13 @@ export default function AppointmentManagement() {
                                         <th style={thStyle}>VETERİNER</th>
                                         <th style={thStyle}>SAHİP</th>
                                         <th style={thStyle}>PET</th>
-                                        <th style={thStyle}>DURUM</th>
+                                        <th style={thStyle}>SEBEP</th>
                                         <th style={{ ...thStyle, textAlign: "right" }}>İŞLEM</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     {appointments.map((appt) => {
                                         const isPast = isPastDate(appt.date);
-                                        const isCancelled = isCancelledByReason(appt);
-
-                                        // ✅ Geçmiş randevu: iptal butonu yok
-                                        // ✅ İptal randevu (reason=iptal): iptal butonu yok
-                                        const canCancel = !isPast && !isCancelled;
 
                                         return (
                                             <tr key={appt.appointmentId} style={trStyle}>
@@ -449,25 +452,17 @@ export default function AppointmentManagement() {
                                                 <td style={{ ...tdStyle, color: "#0284c7", fontWeight: "bold" }}>
                                                     {String(appt.time).substring(0, 5)}
                                                 </td>
-                                                <td style={tdStyle}>{appt.veterinaryName}</td>
+                                                <td style={tdStyle}>{appt.vetName}</td>
                                                 <td style={tdStyle}>{appt.petOwnerName}</td>
                                                 <td style={tdStyle}>
                                                     <HoverBadge onClick={() => handlePetClick(appt)}>{appt.petName}</HoverBadge>
                                                 </td>
 
                                                 {/* ✅ DURUM: geçmişse "GEÇMİŞ", iptalse "İPTAL", değilse reason */}
-                                                <td style={tdStyle}>
-                                                    {isCancelled ? (
-                                                        <span style={{ color: "#ef4444", fontWeight: 800 }}>İPTAL</span>
-                                                    ) : isPast ? (
-                                                        <span style={{ color: "#64748b", fontWeight: 800 }}>GEÇMİŞ</span>
-                                                    ) : (
-                                                        appt.reason || "-"
-                                                    )}
-                                                </td>
+                                                <td style={tdStyle}> {appt.reason || "-"} </td>
 
                                                 <td style={{ ...tdStyle, textAlign: "right" }}>
-                                                    {canCancel ? (
+                                                    {!isPast ? (
                                                         <HoverButton
                                                             onClick={() => handleCancelClick(appt.appointmentId)}
                                                             baseStyle={cancelBtnBase}
@@ -475,12 +470,8 @@ export default function AppointmentManagement() {
                                                         >
                                                             İptal Et
                                                         </HoverButton>
-                                                    ) : isCancelled ? (
-                                                        <span style={{ color: "#ef4444", fontSize: "12px" }}>İptal Edildi</span>
-                                                    ) : isPast ? (
+                                                    ): (
                                                         <span style={{ color: "#64748b", fontSize: "12px", fontWeight: 700 }}>Geçmiş</span>
-                                                    ) : (
-                                                        <span style={{ color: "#cbd5e1", fontSize: "12px" }}>-</span>
                                                     )}
                                                 </td>
                                             </tr>

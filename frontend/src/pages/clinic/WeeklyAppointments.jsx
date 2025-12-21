@@ -58,6 +58,12 @@ export default function WeeklyAppointments() {
     const [selectedPet, setSelectedPet] = useState(null);
     const [cancelModal, setCancelModal] = useState({ show: false, apptId: null });
 
+    // --- DETAY SAYFASI (VIEW MODE) STATE'LERİ ---
+    const [viewMode, setViewMode] = useState(false); // Sayfa değişimi için
+    const [detailPet, setDetailPet] = useState(null); // Detaydaki Pet Bilgisi
+    const [records, setRecords] = useState([]); // Detaydaki Tıbbi Geçmiş
+    const [detailLoading, setDetailLoading] = useState(false);
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -137,21 +143,243 @@ export default function WeeklyAppointments() {
         }
     };
 
+    // ✅ Modalde ID Kopyala
     const copyPetId = () => {
-        if(selectedPet?.id) {
-            navigator.clipboard.writeText(selectedPet.id);
+        if (selectedPet?.petId) {
+            navigator.clipboard.writeText(selectedPet.petId);
             alert("Pet ID kopyalandı!");
         }
     };
 
-    const handleAddMedicalRecord = () => {
-        alert(`"${selectedPet.name}" için Tıbbi Kayıt ekleme ekranı açılıyor... (ID: ${selectedPet.id})`);
+    // ✅ Detay sayfasında ID Kopyala
+    const copyDetailPetId = () => {
+        const id = detailPet?.petId;
+        if (!id) return;
+        navigator.clipboard.writeText(id);
+        alert("Pet ID kopyalandı!");
     };
 
-    const closePetModal = () => setSelectedPet(null);
+    const getAge = (birthDate) => {
+        if (!birthDate) return "-";
+        const today = new Date();
+        const birth = new Date(birthDate);
+        let age = today.getFullYear() - birth.getFullYear();
+        if (
+            new Date(today.getFullYear(), today.getMonth(), today.getDate()) <
+            new Date(today.getFullYear(), birth.getMonth(), birth.getDate())
+        ) {
+            age--;
+        }
+        return age < 0 ? 0 : age;
+    };
+
+    // --- 4. DETAY SAYFASINA GEÇİŞ (MODALDAN TETİKLENİR) ---
+    const switchToDetailView = async () => {
+        if (!selectedPet?.petId) return;
+
+        const petSnapshot = selectedPet
+        const petId = petSnapshot.petId;
+
+        setSelectedPet(null);
+        setViewMode(true);
+        setDetailLoading(true);
+
+        try {
+            setDetailPet(petSnapshot); // Eldeki veriyi önden göster
+            const recRes = await http.get(`/api/medical-records/pet/${petId}`);
+            setRecords(recRes.data || []);
+        } catch (err) {
+            console.error("Detay yüklenemedi", err);
+            alert("Kayıtlar çekilemedi.");
+            setViewMode(false);
+        } finally {
+            setDetailLoading(false);
+        }
+    };
 
     if (loading) return <div style={{ padding: 20, color: "#64748b" }}>⏳ Randevular yükleniyor...</div>;
     if (error) return <div style={{ padding: 20, color: "#ef4444" }}>⚠️ {error}</div>;
+
+
+    // =================================================================================
+    // RENDER: EĞER VIEW MODE AKTİFSE (DETAY SAYFASI)
+    // =================================================================================
+    if (viewMode) {
+        return (
+            <div>
+                {/* Header & Geri Butonu */}
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "25px",
+                    }}
+                >
+                    <button onClick={() => setViewMode(false)} style={backBtnStyle}>
+                        ← Listeye Dön
+                    </button>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ fontSize: "13px", color: "#94a3b8", fontWeight: "500" }}>
+                            Klinik Yönetimi / Pet Detay /{" "}
+                            <span style={{ color: "#0284c7" }}>{detailPet?.name}</span>
+                        </div>
+
+                        <HoverButton
+                            onClick={copyDetailPetId}
+                            baseStyle={copyBtnBase}
+                            hoverStyle={copyBtnHover}
+                            disabled={!detailPet?.petId}
+                            disabledstyle={{ ...copyBtnBase, cursor: "not-allowed", opacity: 0.6 }}
+                        >
+                            📋 ID Kopyala
+                        </HoverButton>
+                    </div>
+                </div>
+
+                {detailLoading ? (
+                    <div style={{ padding: 40, textAlign: "center" }}>⏳ Dosya yükleniyor...</div>
+                ) : (
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "320px 1fr",
+                            gap: "30px",
+                            alignItems: "start",
+                        }}
+                    >
+                        {/* --- SOL KOLON: PROFİL KARTI --- */}
+                        <div style={profileCard}>
+                            <div style={photoWrapper}>
+                                {detailPet?.photoUrl ? (
+                                    <img src={detailPet.photoUrl} style={photoImg} alt="pet" />
+                                ) : (
+                                    <div style={photoPlaceholder}>{detailPet?.name?.charAt(0)}</div>
+                                )}
+                            </div>
+
+                            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                                <h1 style={petName}>{detailPet?.name}</h1>
+                                <span style={speciesBadge}>{detailPet?.species}</span>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                <InfoBox label="IRK" value={detailPet?.breed} icon="🧬" />
+                                <InfoBox
+                                    label="CİNSİYET"
+                                    value={detailPet?.gender === "MALE" ? "Erkek ♂" : "Dişi ♀"}
+                                    icon="⚧"
+                                />
+                                <InfoBox label="DOGUM TARİHİ" value={`${detailPet?.birthDate}`} icon="🎂" />
+                                <InfoBox label="KİLO" value={detailPet?.weight ? `${detailPet.weight} kg` : "-"} icon="⚖️" />
+                                <div
+                                    style={{
+                                        gridColumn: "span 2",
+                                        background: "#f8fafc",
+                                        padding: "10px",
+                                        borderRadius: "8px",
+                                        border: "1px solid #f1f5f9",
+                                    }}
+                                >
+                                    <div style={{ fontSize: "10px", fontWeight: "700", color: "#94a3b8" }}>SAHİP</div>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: "#334155" }}>
+                                        {detailPet?.owner}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* --- SAĞ KOLON: TIBBİ GEÇMİŞ --- */}
+                        <div style={{ minHeight: "500px" }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    marginBottom: "20px",
+                                }}
+                            >
+                                <h2 style={sectionHeader}>📋 Tıbbi Geçmiş ve Tedaviler</h2>
+                                <span style={recordCountBadge}>{records.length} Kayıt</span>
+                            </div>
+
+                            {records.length === 0 ? (
+                                <div style={emptyState}>
+                                    <span style={{ fontSize: "40px" }}>📂</span>
+                                    <p>Henüz tıbbi kayıt girilmemiş.</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                                    {[...records]
+                                        .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                        .map((rec) => (
+                                            <div key={rec.recordId || rec.id} style={recordCard}>
+                                                {/* Kayıt Başlığı */}
+                                                <div style={recordHeader}>
+                                                    <div style={dateBox}>
+                                                        <span style={{ fontSize: "18px", fontWeight: "800" }}>{rec.date.split("-")[2]}</span>
+                                                        <span style={{ fontSize: "11px", textTransform: "uppercase" }}>
+                              {new Date(rec.date).toLocaleString("tr-TR", { month: "short" })}
+                            </span>
+                                                        <span style={{ fontSize: "11px", color: "#94a3b8" }}>{rec.date.split("-")[0]}</span>
+                                                    </div>
+
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={diagnosisTitle}>{rec.description || "Genel Muayene"}</div>
+                                                        <div style={vetInfo}>
+                                                            👨‍⚕️ <b>{rec.vetName || "Hekim Belirtilmemiş"}</b> &nbsp;|&nbsp; 🏥{" "}
+                                                            {rec.clinicName || "Klinik Belirtilmemiş"}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* İlaçlar Bölümü */}
+                                                {rec.medications && rec.medications.length > 0 && (
+                                                    <div style={medicationSection}>
+                                                        <div style={medTitle}>💊 REÇETELİ İLAÇLAR</div>
+                                                        <div style={medGrid}>
+                                                            {rec.medications.map((med, i) => {
+                                                                const isActive = isMedicationActive(med.end);
+                                                                return (
+                                                                    <div key={i} style={medCard}>
+                                                                        <div
+                                                                            style={{
+                                                                                display: "flex",
+                                                                                justifyContent: "space-between",
+                                                                                alignItems: "start",
+                                                                            }}
+                                                                        >
+                                                                            <div>
+                                                                                <div style={medName}>{med.medicineName}</div>
+                                                                                <div style={medType}>{med.medicineType}</div>
+                                                                            </div>
+                                                                            <span style={isActive ? activeBadge : passiveBadge}>
+                                        {isActive ? "DEVAM EDİYOR" : "BİTTİ"}
+                                      </span>
+                                                                        </div>
+
+                                                                        <div style={medDates}>
+                                                                            {med.start} — {med.end || "?"}
+                                                                        </div>
+
+                                                                        {med.instructions && <div style={medNote}>ℹ️ {med.instructions}</div>}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div>
@@ -217,85 +445,90 @@ export default function WeeklyAppointments() {
                 </div>
             )}
 
-            {/* --- PET DETAY & MEDICAL RECORD MODALI --- */}
+            {/* --- PET DETAY MODALI --- */}
             {selectedPet && (
                 <div style={modalOverlayStyle}>
                     <div style={modalBoxStyle}>
-
-                        {/* Başlık */}
-                        <div style={{display:"flex", justifyContent:"space-between", marginBottom:"15px", borderBottom:"1px solid #f1f5f9", paddingBottom:"10px"}}>
-                            <h3 style={{margin:0, color: "#1e293b", display:"flex", alignItems:"center", gap:"10px"}}>
-                                🐾 {selectedPet.name}
-                            </h3>
-                            <button onClick={closePetModal} style={closeXBtn}>✕</button>
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                marginBottom: "15px",
+                                borderBottom: "1px solid #f1f5f9",
+                                paddingBottom: "10px",
+                            }}
+                        >
+                            <h3 style={{ margin: 0, color: "#1e293b" }}>🐾 {selectedPet.name}</h3>
+                            <button onClick={() => setSelectedPet(null)} style={closeXBtn}>
+                                ✕
+                            </button>
                         </div>
 
-                        <div style={{display:"flex", flexDirection:"column", gap:"15px"}}>
-
-                            {/* FOTOĞRAF VE TEMEL BİLGİ */}
-                            <div style={{display:"flex", gap:"15px", alignItems:"center"}}>
-                                <div style={photoContainerStyle}>
-                                    {selectedPet.photoUrl ? (
-                                        <img src={selectedPet.photoUrl} alt={selectedPet.name} style={photoStyle} />
-                                    ) : (
-                                        <div style={placeholderPhotoStyle}>{selectedPet.name ? selectedPet.name.charAt(0) : "?"}</div>
-                                    )}
-                                </div>
-                                <div>
-                                    <div style={{fontSize:"14px", fontWeight:"700", color:"#334155"}}>
-                                        {selectedPet.breed || "Irk Bilinmiyor"}
+                        {selectedPet.loading ? (
+                            <div>Yükleniyor...</div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                                <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                                    <div style={photoContainerStyle}>
+                                        {selectedPet.photoUrl ? (
+                                            <img src={selectedPet.photoUrl} alt="pet" style={photoStyle} />
+                                        ) : (
+                                            <div style={{ fontWeight: 900, color: "#64748b" }}>?</div>
+                                        )}
                                     </div>
-                                    <div style={{fontSize:"12px", color:"#64748b"}}>
-                                        {selectedPet.species || "Tür Bilinmiyor"}
+                                    <div>
+                                        <div style={{ fontWeight: "bold" }}>{selectedPet.breed || "-"}</div>
+                                        <div style={{ fontSize: "12px", color: "#64748b" }}>{selectedPet.species || "-"}</div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* BİLGİ KUTUCUKLARI (Grid) */}
-                            <div style={gridContainer}>
-                                <div style={infoBox}>
-                                    <label style={detailLabel}>CİNSİYET</label>
-                                    <div style={detailValue}>{selectedPet.gender || "-"}</div>
-                                </div>
-                                <div style={infoBox}>
-                                    <label style={detailLabel}>KİLO</label>
-                                    <div style={detailValue}>{selectedPet.weight ? `${selectedPet.weight} kg` : "-"}</div>
-                                </div>
-                                <div style={infoBox}>
-                                    <label style={detailLabel}>DOĞUM TARİHİ</label>
-                                    <div style={detailValue}>{selectedPet.birthDate || "-"}</div>
-                                </div>
-                                <div style={infoBox}>
-                                    <label style={detailLabel}>HASTA SAHİBİ</label>
-                                    <div style={detailValue}>{selectedPet.owner}</div>
-                                </div>
-                            </div>
+                                <div style={gridContainer}>
+                                    <div>
+                                        <label style={detailLabel}>CİNSİYET</label>
+                                        <div style={{ fontWeight: 700, color: "#334155" }}>{selectedPet.gender || "-"}</div>
+                                    </div>
+                                    <div>
+                                        <label style={detailLabel}>KİLO</label>
+                                        <div style={{ fontWeight: 700, color: "#334155" }}>
+                                            {selectedPet.weight ? `${selectedPet.weight} kg` : "-"}
+                                        </div>
+                                    </div>
+                                    <div style={{ gridColumn: "1" }}>
+                                        <label style={detailLabel}>SAHİP</label>
+                                        <div style={{ fontWeight: 700, color: "#334155" }}>{selectedPet.owner || "-"}</div>
+                                    </div>
 
-                            {/* ID VE KOPYALA */}
-                            <div>
-                                <label style={detailLabel}>PET ID (Sistem No)</label>
-                                <div style={{display:"flex", gap:"10px", alignItems:"center", marginTop:"2px"}}>
-                                    <code style={codeStyle}>{selectedPet.petId || "Yok"}</code>
-                                    <HoverButton onClick={copyPetId} baseStyle={copyBtnBase} hoverStyle={copyBtnHover}>
-                                        Kopyala
+                                    <div style={{ gridColumn: "2" }}>
+                                        <label style={detailLabel}>YAŞ</label>
+                                        <div style={{ fontWeight: 700, color: "#334155" }}>{getAge(selectedPet.birthDate) || "-"}</div>
+                                    </div>
+                                </div>
+
+                                {/* ✅ ID + KOPYALA */}
+                                <div style={{ marginTop: "2px" }}>
+                                    <label style={detailLabel}>ID</label>
+
+                                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "4px" }}>
+                                        <code style={{ ...codeStyle, flex: 1 }}>{selectedPet.petId}</code>
+
+                                        <HoverButton onClick={copyPetId} baseStyle={copyBtnBase} hoverStyle={copyBtnHover}>
+                                            Kopyala
+                                        </HoverButton>
+                                    </div>
+                                </div>
+
+                                {/* DETAY SAYFASINA GEÇİŞ BUTONU */}
+                                <div style={{ marginTop: "5px", paddingTop: "15px", borderTop: "1px solid #f1f5f9" }}>
+                                    <HoverButton onClick={switchToDetailView} baseStyle={detailsBtnBase} hoverStyle={detailsBtnHover}>
+                                        📄 Detayları & Geçmişi Gör
                                     </HoverButton>
                                 </div>
                             </div>
-
-                            {/* AKSİYON */}
-                            <div style={{marginTop:"5px", paddingTop:"15px", borderTop:"1px solid #f1f5f9"}}>
-                                <HoverButton
-                                    onClick={handleAddMedicalRecord}
-                                    baseStyle={medicalRecordBtnBase}
-                                    hoverStyle={medicalRecordBtnHover}
-                                >
-                                    ✚ Tıbbi Kayıt Ekle
-                                </HoverButton>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             )}
+
 
             {/* --- İPTAL ONAY MODALI --- */}
             {cancelModal.show && (
@@ -320,6 +553,16 @@ export default function WeeklyAppointments() {
     );
 }
 
+// --- ALT BİLEŞEN: KUTUCUK ---
+const InfoBox = ({ label, value, icon }) => (
+    <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: "10px", fontWeight: "700", color: "#94a3b8", marginBottom: "2px" }}>{label}</div>
+        <div style={{ fontSize: "13px", fontWeight: "600", color: "#334155", display: "flex", alignItems: "center", gap: "5px" }}>
+            <span>{icon}</span> {value || "-"}
+        </div>
+    </div>
+);
+
 // --- STİLLER ---
 const headerStyle = { fontSize: "20px", fontWeight: "800", color: "#1e293b", marginBottom: "5px" };
 const subHeaderStyle = { fontSize: "13px", color: "#64748b", marginBottom: "25px" };
@@ -335,14 +578,12 @@ const trStyle = { borderBottom: "1px solid #f1f5f9" };
 const tdStyle = { padding: "12px 15px", fontSize: "14px", color: "#334155", verticalAlign: "middle" };
 
 // --- BUTON STİLLERİ ---
-const cancelBtnBase = { padding: "6px 12px", background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" };
-const cancelBtnHover = { background: "#fecaca", borderColor: "#f87171" };
+const cancelBtnBase = {padding: "6px 12px", background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5",};
+const cancelBtnHover = {background: "#fecaca", border: "1px solid #f87171"};
 
-const medicalRecordBtnBase = { width: "100%", padding: "12px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(59, 130, 246, 0.3)" };
-const medicalRecordBtnHover = { background: "#2563eb", boxShadow: "0 6px 10px -1px rgba(59, 130, 246, 0.4)" };
-
-const copyBtnBase = { padding: "8px 12px", background: "white", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px" };
-const copyBtnHover = { background: "#f8fafc", borderColor: "#94a3b8", color: "#475569" };
+// Kopyala Butonu
+const copyBtnBase = {padding: "8px 12px", background: "white", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px"};
+const copyBtnHover = {background: "#f8fafc", border: "1px solid #94a3b8", color: "#475569"};
 
 const modalCancelBtnBase = { padding: "8px 16px", background: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontWeight: "600" };
 const modalCancelBtnHover = { background: "#e2e8f0", color: "#334155" };
@@ -355,14 +596,40 @@ const modalOverlayStyle = { position: "fixed", top: 0, left: 0, right: 0, bottom
 const modalBoxStyle = { background: "white", padding: "25px", borderRadius: "15px", width: "380px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)", position: "relative" };
 
 const detailLabel = { fontSize: "11px", fontWeight: "800", color: "#94a3b8", marginBottom: "4px", display: "block", textTransform: "uppercase" };
-const detailValue = { fontSize: "15px", fontWeight: "600", color: "#334155" };
 
 const photoContainerStyle = { width: "60px", height: "60px", borderRadius: "50%", overflow: "hidden", border: "2px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" };
 const photoStyle = { width: "100%", height: "100%", objectFit: "cover" };
-const placeholderPhotoStyle = { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#e0f2fe", color: "#0284c7", fontSize: "24px", fontWeight: "bold" };
 
 const gridContainer = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #f1f5f9" };
-const infoBox = { display: "flex", flexDirection: "column" };
 
 const codeStyle = { background: "#f1f5f9", padding: "10px", borderRadius: "6px", flex: 1, fontFamily: "monospace", color: "#334155", fontWeight: "bold", border: "1px solid #e2e8f0", fontSize: "13px" };
 const closeXBtn = { background:"transparent", border:"none", cursor:"pointer", fontSize:"18px", color:"#94a3b8" };
+
+// --- DETAY SAYFASI ÖZEL STİLLERİ ---
+const backBtnStyle = { background: "white", border: "1px solid #e2e8f0", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: "600", color: "#475569", display: "flex", alignItems: "center", gap: "5px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" };
+const profileCard = { background: "white", borderRadius: "16px", padding: "25px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)", height: "fit-content" };
+const photoWrapper = { width: "120px", height: "120px", borderRadius: "50%", margin: "0 auto 15px auto", overflow: "hidden", border: "4px solid #f0f9ff", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" };
+const photoImg = { width: "100%", height: "100%", objectFit: "cover" };
+const photoPlaceholder = { width: "100%", height: "100%", background: "#e0f2fe", color: "#0284c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px", fontWeight: "bold" };
+const petName = { margin: "0 0 5px 0", fontSize: "22px", color: "#1e293b", fontWeight: "800" };
+const speciesBadge = { background: "#e0f2fe", color: "#0284c7", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "700", textTransform: "uppercase" };
+const sectionHeader = { fontSize: "18px", fontWeight: "800", color: "#1e293b", margin: 0 };
+const recordCountBadge = { background: "#f1f5f9", color: "#64748b", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" };
+const emptyState = { background: "white", padding: "50px", borderRadius: "12px", border: "2px dashed #e2e8f0", textAlign: "center", color: "#94a3b8" };
+const recordCard = { background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" };
+const recordHeader = { display: "flex", gap: "15px", padding: "20px", borderBottom: "1px solid #f8fafc" };
+const dateBox = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f8fafc", width: "60px", height: "60px", borderRadius: "10px", border: "1px solid #e2e8f0", color: "#334155" };
+const diagnosisTitle = { fontSize: "16px", fontWeight: "700", color: "#1e293b", marginBottom: "4px" };
+const vetInfo = { fontSize: "13px", color: "#64748b" };
+const medicationSection = { background: "#f8fafc", padding: "15px 20px" };
+const medTitle = { fontSize: "11px", fontWeight: "800", color: "#64748b", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" };
+const medGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "10px" };
+const medCard = { background: "white", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", borderLeft: "3px solid #0284c7" };
+const medName = { fontSize: "14px", fontWeight: "700", color: "#1e293b" };
+const medType = { fontSize: "11px", color: "#64748b", fontStyle: "italic", marginBottom: "5px" };
+const medDates = { fontSize: "11px", color: "#475569", marginTop: "5px", display: "flex", alignItems: "center", gap: "5px" };
+const medNote = { marginTop: "8px", fontSize: "12px", color: "#334155", background: "#f1f5f9", padding: "6px", borderRadius: "4px", fontStyle: "italic" };
+const activeBadge = { fontSize: "9px", fontWeight: "800", color: "white", background: "#10b981", padding: "2px 6px", borderRadius: "4px" };
+const passiveBadge = { fontSize: "9px", fontWeight: "800", color: "white", background: "#94a3b8", padding: "2px 6px", borderRadius: "4px" };
+const detailsBtnBase = { width: "100%", padding: "12px", background: "#6366f1", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(99, 102, 241, 0.3)" };
+const detailsBtnHover = { background: "#4f46e5", boxShadow: "0 6px 10px -1px rgba(99, 102, 241, 0.4)" };

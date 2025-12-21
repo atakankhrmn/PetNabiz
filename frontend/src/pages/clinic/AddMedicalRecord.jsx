@@ -31,6 +31,8 @@ export default function AddMedicalRecord() {
     // --- STATE'LER ---
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const getTodayDate = () => new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
 
     // Arama
     const [searchMode, setSearchMode] = useState("detail");
@@ -58,8 +60,8 @@ export default function AddMedicalRecord() {
     const [currentMed, setCurrentMed] = useState({
         id: null,
         name: "",
-        start: "",
-        end: "",
+        start: today,
+        end: today,
         instructions: ""
     });
 
@@ -103,7 +105,11 @@ export default function AddMedicalRecord() {
         // Validasyon
         if (!currentMed.id) return alert("Lütfen listeden geçerli bir ilaç seçiniz.");
         if (!currentMed.start || !currentMed.end) return alert("Lütfen ilaç için başlangıç ve bitiş tarihlerini giriniz.");
+        // Ekstra Validasyon: Bitiş tarihi başlangıçtan küçükse uyar (HTML min engellese de manuel girişe karşı)
+        if (currentMed.end < currentMed.start) return alert("Bitiş tarihi başlangıç tarihinden önce olamaz.");
         if (!currentMed.instructions) return alert("Lütfen kullanım talimatını giriniz.");
+
+
 
         // Listeye Ekle
         setAddedMedications([...addedMedications, currentMed]);
@@ -112,8 +118,8 @@ export default function AddMedicalRecord() {
         setCurrentMed({
             id: null,
             name: "",
-            start: "",
-            end: "",
+            start: today,
+            end: today,
             instructions: ""
         });
     };
@@ -314,8 +320,38 @@ export default function AddMedicalRecord() {
                                 </div>
 
                                 {/* Tarihler ve Talimat - Sadece ilaç seçilince veya yazılınca aktif olsa iyi olur ama sürekli açık kalsın */}
-                                <div><label style={labelStyle}>Başlangıç</label><input type="date" style={inputStyle} value={currentMed.start} onChange={e => setCurrentMed({...currentMed, start: e.target.value})} /></div>
-                                <div><label style={labelStyle}>Bitiş</label><input type="date" style={inputStyle} value={currentMed.end} onChange={e => setCurrentMed({...currentMed, end: e.target.value})} /></div>
+                                <div>
+                                    <label style={labelStyle}>Başlangıç</label>
+                                    <input
+                                        type="date"
+                                        style={inputStyle}
+                                        // 4. MİNİMUM TARİH AYARI
+                                        min={today} // Bugünden öncesi seçilemez
+                                        value={currentMed.start}
+                                        onChange={e => {
+                                            const newStart = e.target.value;
+                                            // Eğer yeni başlangıç tarihi, mevcut bitiş tarihinden ilerideyse bitişi temizle
+                                            let newEnd = currentMed.end;
+                                            if (newEnd && newEnd < newStart) {
+                                                newEnd = "";
+                                            }
+                                            setCurrentMed({...currentMed, start: newStart, end: newEnd});
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={labelStyle}>Bitiş</label>
+                                    <input
+                                        type="date"
+                                        style={inputStyle}
+                                        // 5. BİTİŞ TARİHİ KISITLAMASI
+                                        // Bitiş tarihi, seçilen başlangıç tarihinden önce olamaz (ama aynı gün olabilir)
+                                        min={currentMed.start || today}
+                                        value={currentMed.end}
+                                        onChange={e => setCurrentMed({...currentMed, end: e.target.value})}
+                                    />
+                                </div>
                                 <div style={{ gridColumn: "span 2" }}><label style={labelStyle}>Talimatlar</label><input type="text" style={inputStyle} placeholder="Örn: Günde 2 defa..." value={currentMed.instructions} onChange={e => setCurrentMed({...currentMed, instructions: e.target.value})} /></div>
 
                                 <div style={{ gridColumn: "span 2", textAlign: "right" }}>
