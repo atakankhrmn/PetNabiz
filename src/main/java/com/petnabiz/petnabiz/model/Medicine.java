@@ -8,7 +8,7 @@ import java.util.List;
 public class Medicine {
 
     @Id
-    @Column(name = "medicine_id", length = 20)
+    @Column(name = "medicine_id", length = 40)
     private String medicineId;
 
     @Column(nullable = false)

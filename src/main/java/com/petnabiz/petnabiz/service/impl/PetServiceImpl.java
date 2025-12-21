@@ -2,6 +2,7 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetWeightUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.mapper.PetMapper;
 import com.petnabiz.petnabiz.model.Pet;
@@ -132,6 +133,21 @@ public class PetServiceImpl implements PetService {
                     .orElseThrow(() -> new IllegalArgumentException("Owner bulunamadı (email): " + email));
         }
 
+        String newName = dto.getName();
+        if (newName == null || newName.isBlank()) {
+            throw new IllegalArgumentException("Pet için name zorunlu.");
+        }
+
+        boolean nameExists = petRepository.existsByOwner_OwnerIdAndNameIgnoreCase(
+                owner.getOwnerId(), // ownerId alanın farklıysa düzelt
+                newName.trim()
+        );
+
+        if (nameExists) {
+            throw new IllegalArgumentException("Bu pet sahibi için aynı isimde bir pet zaten var: " + newName.trim());
+        }
+
+
         // ✅ petId backend'de üretilir (DTO'dan gelmez)
         String newPetId = UUID.randomUUID().toString();
         while (petRepository.existsByPetId(newPetId)) { // aşırı düşük ihtimal ama garanti
@@ -232,4 +248,31 @@ public class PetServiceImpl implements PetService {
 
         petRepository.delete(existing);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PetResponseDTO getPetByPhoneNumberAndPetName(String phone, String petName) {
+
+        Pet pet = petRepository
+                .findByNameIgnoreCaseAndOwner_Phone(petName, phone) // ⚠️ sıra DÜZELTİLDİ
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Bu telefon numarasına ait '" + petName + "' isimli pet bulunamadı."
+                        )
+                );
+
+        return petMapper.toResponse(pet);
+    }
+
+    public PetResponseDTO updatePetWeight(String petId, PetWeightUpdateRequestDTO dto) {
+
+        Pet existing = petRepository.findByPetId(petId)
+                .orElseThrow(() -> new EntityNotFoundException("Pet bulunamadı: " + petId));
+
+        if (dto.getWeight() != null) existing.setWeight(dto.getWeight());
+
+        Pet saved = petRepository.save(existing);
+        return petMapper.toResponse(saved);
+    }
+
 }

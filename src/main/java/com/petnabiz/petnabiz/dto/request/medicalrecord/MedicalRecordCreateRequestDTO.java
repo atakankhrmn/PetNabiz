@@ -5,7 +5,6 @@ import java.time.LocalDate;
 
 @Data
 public class MedicalRecordCreateRequestDTO {
-    private String recordId;      // opsiyonel (sizde String id var, client veriyorsa)
     private String description;   // opsiyonel
     private LocalDate date;       // zorunlu
     private String petId;         // zorunlu

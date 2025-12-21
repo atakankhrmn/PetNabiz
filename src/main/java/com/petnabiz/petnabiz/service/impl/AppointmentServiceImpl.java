@@ -186,7 +186,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setVeterinary(vet);
         appointment.setPet(pet);
 
-        if (dto.getStatus() != null) appointment.setStatus(dto.getStatus());
         if (dto.getReason() != null) appointment.setReason(dto.getReason());
 
         Appointment saved = appointmentRepository.save(appointment);
@@ -241,7 +240,6 @@ public class AppointmentServiceImpl implements AppointmentService {
             existing.setVeterinary(newVet);
         }
 
-        if (dto.getStatus() != null) existing.setStatus(dto.getStatus());
         if (dto.getReason() != null) existing.setReason(dto.getReason());
 
         Appointment saved = appointmentRepository.save(existing);
@@ -289,6 +287,18 @@ public class AppointmentServiceImpl implements AppointmentService {
         List<Appointment> appointments = appointmentRepository
                 .findByVeterinary_Clinic_ClinicIdAndDateBetween(clinicId, startDate, endDate);
 
+        // 3. DTO'ya çevir ve döndür
+        return appointments.stream()
+                .map(appointmentMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public List<AppointmentResponseDTO> getAppointmentsByDateRangeAndClinicID(LocalDate startDate, LocalDate endDate, String clinicID) {
+        // 2. Veritabanından çek
+        List<Appointment> appointments = appointmentRepository
+                .findByVeterinary_Clinic_ClinicIdAndDateBetween(clinicID, startDate, endDate);
         // 3. DTO'ya çevir ve döndür
         return appointments.stream()
                 .map(appointmentMapper::toResponse)

@@ -10,7 +10,7 @@ import java.time.LocalTime;
 public class Medication {
 
     @Id
-    @Column(name = "medication_id", length = 20)
+    @Column(name = "medication_id", length = 40)
     private String medicationId;
 
 

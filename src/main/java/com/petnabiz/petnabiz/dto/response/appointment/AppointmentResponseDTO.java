@@ -10,7 +10,6 @@ public class AppointmentResponseDTO {
     private String appointmentId;
     private LocalDate date;
     private LocalTime time;
-    private String status;
     private String vetId;
     private String petId;
     private String reason;

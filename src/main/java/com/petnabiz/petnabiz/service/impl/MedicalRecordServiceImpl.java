@@ -14,7 +14,7 @@ import com.petnabiz.petnabiz.service.MedicalRecordService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -126,10 +126,13 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
                 .toList();
     }
 
+
+
     @Override
     @Transactional
     public MedicalRecordResponseDTO createMedicalRecord(MedicalRecordCreateRequestDTO dto) {
 
+        // 1. Validasyonlar
         if (dto.getPetId() == null || dto.getPetId().isBlank()) {
             throw new IllegalArgumentException("MedicalRecord için petId zorunlu.");
         }
@@ -140,6 +143,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
             throw new IllegalArgumentException("MedicalRecord için date zorunlu.");
         }
 
+        // 2. Pet ve Vet Bulma
         Pet pet = petRepository.findByPetId(dto.getPetId())
                 .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + dto.getPetId()));
 
@@ -148,10 +152,10 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         MedicalRecord record = new MedicalRecord();
 
-        // Not: recordId client'tan gelmesin daha iyi, ama siz String id kullanıyorsanız şimdilik bırakıyoruz
-        if (dto.getRecordId() != null && !dto.getRecordId().isBlank()) {
-            record.setRecordId(dto.getRecordId());
-        }
+        // --- DEĞİŞİKLİK BURADA ---
+        // Frontend'den ID gelmesini beklemiyoruz, biz üretiyoruz:
+        record.setRecordId(UUID.randomUUID().toString());
+        // -------------------------
 
         record.setDescription(dto.getDescription());
         record.setDate(dto.getDate());

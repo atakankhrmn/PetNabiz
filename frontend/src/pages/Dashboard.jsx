@@ -2,15 +2,17 @@ import { useState, useEffect } from "react";
 import AdminPanel from "./admin/AdminPanel";
 import Pets from "./owner/Pets";
 import Veterinaries from "./clinic/Veterinaries";
-import SlotManager from "./clinic/SlotManager"; // <-- 1. YENİ İMPORT
-// YENİ ROL BAZLI PROFİL İMPORTLARI
+import SlotManager from "./clinic/SlotManager";
 import AdminProfile from "./admin/AdminProfile";
 import ClinicProfile from "./clinic/ClinicProfile.jsx";
 import OwnerProfile from "./owner/OwnerProfile";
 import { http } from "../api/http";
 import BookAppointment from "./owner/BookAppointment";
 import MyAppointments from "./owner/MyAppointments";
-import WeeklyAppointments from "./clinic/WeeklyAppointments"; // <-- YENİ
+import WeeklyAppointments from "./clinic/WeeklyAppointments";
+import AppointmentManagement from "./clinic/AppointmentManagement";
+import AddMedicalRecord from "./clinic/AddMedicalRecord";
+
 
 export default function Dashboard({ me, onLogout }) {
     const [ownerInfo, setOwnerInfo] = useState(null);
@@ -118,11 +120,12 @@ function getMenu(role) {
     switch(role) {
         case "ROLE_ADMIN": return [{ key: "admin", label: "⚙️ Sistem Yönetimi" }];
 
-        // <-- 2. CLINIC ROLÜ İÇİN YENİ MENÜ ELEMANI
         case "ROLE_CLINIC": return [
             { key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" },
             { key: "clinic_slots", label: "📅 Randevu Takvimi" },
-            { key: "weekly_appts", label: "🗓️ Bu Haftaki Randevular" } // <-- YENİ EKLENEN
+            { key: "weekly_appts", label: "🗓️ Bu Haftaki Randevular" },
+            { key: "history", label: "📂 Randevu Yönetimi" },
+            { key: "add_record", label: "📝 Muayene Kaydı Oluştur" }
         ];
 
         case "ROLE_OWNER": return [
@@ -151,6 +154,8 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
         if (page === "clinic_vets") return <Veterinaries />;
         if (page === "clinic_slots") return <SlotManager />;
         if (page === "weekly_appts") return <WeeklyAppointments/>
+        if (page === "history") return <AppointmentManagement/>
+        if (page === "add_record") return <AddMedicalRecord/>;
     }
 
     if (role === "ROLE_OWNER") {

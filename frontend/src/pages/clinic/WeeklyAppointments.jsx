@@ -187,7 +187,7 @@ export default function WeeklyAppointments() {
                                     </div>
                                 </td>
 
-                                <td style={tdStyle}>{appt.veterinaryName}</td>
+                                <td style={tdStyle}>{appt.vetName}</td>
                                 <td style={tdStyle}>{appt.petOwnerName}</td>
 
                                 <td style={tdStyle}>

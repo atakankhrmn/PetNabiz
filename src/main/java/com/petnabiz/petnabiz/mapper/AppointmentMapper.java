@@ -12,7 +12,6 @@ public class AppointmentMapper {
         dto.setAppointmentId(a.getAppointmentId());
         dto.setDate(a.getDate());
         dto.setTime(a.getTime());
-        dto.setStatus(a.getStatus());
         dto.setReason(a.getReason());
 
         dto.setPetId(a.getPet() != null ? a.getPet().getPetId() : null);

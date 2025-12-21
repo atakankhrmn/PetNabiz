@@ -185,7 +185,6 @@ public class SlotServiceImpl implements SlotService {
         Appointment appt = new Appointment();
         appt.setDate(slot.getDate());
         appt.setTime(slot.getTime());
-        appt.setStatus("Active");
         appt.setVeterinary(slot.getVeterinary());
         appt.setPet(pet);
         appt.setAppointmentId(genAppointmentId());

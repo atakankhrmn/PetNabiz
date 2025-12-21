@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -145,6 +146,21 @@ public class AppointmentController {
     @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @clinicService.isClinicSelf(authentication.name, #clinicId))")
     public ResponseEntity<List<AppointmentResponseDTO>> getUpcomingAppointmentsByClinic(@PathVariable String clinicId) {
         return ResponseEntity.ok(appointmentService.getUpcomingAppointmentsByClinicId(clinicId));
+    }
+
+    /**
+     * 11) Belirli bir tarih aralığındaki randevuları getirir.
+     * Kullanım: /api/appointments/clinic/{clinicId}/history?startDate=2024-01-01&endDate=2024-12-31
+     * Erişim: ADMIN veya O Kliniğin Sahibi (CLINIC)
+     */
+    @GetMapping("/clinic/{clinicId}/history")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @clinicService.isClinicSelf(authentication.name, #clinicId))")
+    public ResponseEntity<List<AppointmentResponseDTO>> getAppointmentsByDateRange(
+            @PathVariable String clinicId,
+            @RequestParam("startDate") LocalDate startDate,
+            @RequestParam("endDate") LocalDate endDate
+    ) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByDateRangeAndClinicID(startDate, endDate, clinicId));
     }
 
 

@@ -18,7 +18,6 @@ public class Appointment {
     @Column(nullable = false)
     private LocalTime time;
 
-    private String status; //enum olacak o yüzden column eklemedik
     private String reason; //opsiyonel
 
     @ManyToOne
@@ -60,14 +59,6 @@ public class Appointment {
 
     public void setTime(LocalTime time) {
         this.time = time;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     public String getReason() {

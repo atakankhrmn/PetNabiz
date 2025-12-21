@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class MedicineServiceImpl implements MedicineService {
@@ -61,10 +62,7 @@ public class MedicineServiceImpl implements MedicineService {
     @Transactional
     public MedicineResponseDTO createMedicine(MedicineCreateRequestDTO dto) {
 
-        // ✅ PK string olduğu için medicineId zorunlu
-        if (dto.getMedicineId() == null || dto.getMedicineId().isBlank()) {
-            throw new IllegalArgumentException("medicineId zorunlu.");
-        }
+        // 1. Validasyonlar
         if (dto.getName() == null || dto.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Medicine name boş olamaz.");
         }
@@ -72,17 +70,19 @@ public class MedicineServiceImpl implements MedicineService {
             throw new IllegalArgumentException("Medicine type boş olamaz.");
         }
 
-        if (medicineRepository.existsByMedicineId(dto.getMedicineId())) {
-            throw new IllegalStateException("Bu ID ile medicine zaten kayıtlı: " + dto.getMedicineId());
-        }
-
+        // 2. Aynı isimde ilaç var mı kontrolü
         Optional<Medicine> existingByName = medicineRepository.findByName(dto.getName());
         if (existingByName.isPresent()) {
             throw new IllegalStateException("Bu isimde bir medicine zaten kayıtlı: " + dto.getName());
         }
 
         Medicine m = new Medicine();
-        m.setMedicineId(dto.getMedicineId());
+
+        // --- EKLENEN KISIM: ID ÜRETİMİ ---
+        // Veritabanına kaydetmeden önce benzersiz bir ID veriyoruz
+        m.setMedicineId(UUID.randomUUID().toString());
+        // ---------------------------------
+
         m.setName(dto.getName());
         m.setType(dto.getType());
 
