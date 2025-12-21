@@ -29,4 +29,5 @@ public interface AdminRepository extends JpaRepository<Admin, String> {
     Optional<Admin> findByFullName(String fullName);
 
     List<Admin> findByFullNameContainingIgnoreCase(String fullNamePart);
+
 }

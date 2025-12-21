@@ -70,12 +70,6 @@ public class MedicineServiceImpl implements MedicineService {
             throw new IllegalArgumentException("Medicine type boş olamaz.");
         }
 
-        // 2. Aynı isimde ilaç var mı kontrolü
-        Optional<Medicine> existingByName = medicineRepository.findByName(dto.getName());
-        if (existingByName.isPresent()) {
-            throw new IllegalStateException("Bu isimde bir medicine zaten kayıtlı: " + dto.getName());
-        }
-
         Medicine m = new Medicine();
 
         // --- EKLENEN KISIM: ID ÜRETİMİ ---

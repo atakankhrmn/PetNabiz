@@ -12,6 +12,8 @@ import MyAppointments from "./owner/MyAppointments";
 import WeeklyAppointments from "./clinic/WeeklyAppointments";
 import AppointmentManagement from "./clinic/AppointmentManagement";
 import AddMedicalRecord from "./clinic/AddMedicalRecord";
+import AddAdmin from "./admin/AddAdmin";
+import AddMedicine from "./admin/AddMedicine";
 
 
 export default function Dashboard({ me, onLogout }) {
@@ -118,7 +120,11 @@ export default function Dashboard({ me, onLogout }) {
 // Menü Elemanları Tanımı
 function getMenu(role) {
     switch(role) {
-        case "ROLE_ADMIN": return [{ key: "admin", label: "⚙️ Sistem Yönetimi" }];
+        case "ROLE_ADMIN": return [
+            { key: "admin", label: "⚙️ Sistem Yönetimi" },
+            { key: "add_admin", label: "🛡️ Yeni Admin Ekle" },
+            { key: "add_medicine", label: "💊 Yeni İlaç Ekle" }
+        ];
 
         case "ROLE_CLINIC": return [
             { key: "clinic_vets", label: "👨‍⚕️ Veteriner Hekimler" },
@@ -146,10 +152,15 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
         if (role === "ROLE_OWNER") return <OwnerProfile me={me} ownerInfo={ownerInfo} setOwnerInfo={setOwnerInfo} />;
     }
 
-    // 2. Fonksiyonel Sayfalar
-    if (role === "ROLE_ADMIN" && page === "admin") return <AdminPanel />;
+    // 2. ADMIN Sayfaları
+    // 2. ADMIN Sayfaları
+    if (role === "ROLE_ADMIN") {
+        if (page === "admin") return <AdminPanel />;
+        if (page === "add_admin") return <AddAdmin />;
+        if (page === "add_medicine") return <AddMedicine />;
+    }
 
-    // <-- 3. CLINIC SAYFALARI RENDER MANTIĞI
+    // 3. CLINIC Sayfaları
     if (role === "ROLE_CLINIC") {
         if (page === "clinic_vets") return <Veterinaries />;
         if (page === "clinic_slots") return <SlotManager />;
@@ -158,6 +169,7 @@ function renderPage(page, role, me, ownerInfo, setOwnerInfo) {
         if (page === "add_record") return <AddMedicalRecord/>;
     }
 
+    // 4. OWNER Sayfaları
     if (role === "ROLE_OWNER") {
         if (page === "owner_pets") return <Pets me={me} />;
         if (page === "book_appointment") return <BookAppointment me={me} />;
