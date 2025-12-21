@@ -14,6 +14,7 @@ public class ClinicApplicationResponseDTO {
     private String city;
     private String district;
     private String address;
+    private String documentPath;
 
     private ApplicationStatus status;
 }

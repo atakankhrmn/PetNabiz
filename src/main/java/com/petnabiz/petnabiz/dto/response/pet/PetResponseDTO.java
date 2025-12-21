@@ -20,4 +20,5 @@ public class PetResponseDTO {
     // ilişkileri full basmayalım, ID listesi yeter
     private List<String> appointmentIds;
     private List<String> medicalRecordIds;
+    private String ownerName;
 }
