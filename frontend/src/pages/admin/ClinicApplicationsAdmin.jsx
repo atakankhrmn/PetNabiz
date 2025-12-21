@@ -3,7 +3,7 @@ import { http } from "../../api/http";
 
 // --- AYARLAR ---
 // Backend'de dosyaları sunduğun klasör yolu (Controller'daki yapıya göre değişebilir)
-const BASE_CERT_URL = "http://localhost:8080/uploads/clinic-documents/";
+const BASE_CERT_URL = "http://localhost:8080/";
 
 // --- STİLLER ---
 const containerStyle = { padding: "0 20px 20px 0" };
