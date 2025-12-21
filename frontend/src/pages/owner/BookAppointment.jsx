@@ -35,7 +35,6 @@ export default function BookAppointment({ me }) {
         setLoading(true);
         setMsg({ type: "", text: "" });
         try {
-            // Backend'deki yeni range endpoint'ini çağırıyoruz
             const res = await http.get("/api/slots/available/range", {
                 params: {
                     startDate: searchForm.startDate,
@@ -44,8 +43,22 @@ export default function BookAppointment({ me }) {
                     district: searchForm.district
                 }
             });
-            setSlots(res.data || []);
-            if (res.data.length === 0) setMsg({ type: "info", text: "Aranan kriterlere uygun boş randevu bulunamadı." });
+
+            // VERİYİ BURADA SIRALIYORUZ
+            const sortedData = (res.data || []).sort((a, b) => {
+                // Önce tarihe bak (2025-12-21 gibi)
+                if (a.date !== b.date) {
+                    return a.date.localeCompare(b.date);
+                }
+                // Tarihler aynıysa saate bak (09:00:00 gibi)
+                return a.time.localeCompare(b.time);
+            });
+
+            setSlots(sortedData);
+
+            if (sortedData.length === 0) {
+                setMsg({ type: "info", text: "Aranan kriterlere uygun boş randevu bulunamadı." });
+            }
         } catch (err) {
             setMsg({ type: "error", text: "Randevular aranırken bir hata oluştu." });
         } finally {
