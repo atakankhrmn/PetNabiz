@@ -2,11 +2,14 @@ package com.petnabiz.petnabiz.controller;
 
 import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetWeightUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.service.PetService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.List;
@@ -35,8 +38,12 @@ public class PetController {
      * ADMIN: herhangi bir pet
      * OWNER: sadece kendi pet'i
      */
+    /**
+     * Pet Detaylarını Getir
+     */
     @GetMapping("/{petId}")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('OWNER') and @petService.isPetOwnedBy(authentication.name, #petId))")
+    // AŞAĞIDAKİ SATIRA "hasRole('CLINIC')" EKLEDİĞİNDEN EMİN OL:
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CLINIC') or (hasRole('OWNER') and @petService.isPetOwnedBy(authentication.name, #petId))")
     public ResponseEntity<PetResponseDTO> getPetById(@PathVariable String petId) {
         return ResponseEntity.ok(petService.getPetById(petId));
     }
@@ -78,6 +85,22 @@ public class PetController {
         return ResponseEntity.ok(petService.updatePet(petId, dto));
     }
 
+    @PostMapping(value = "/{petId}/upload-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN') or @petService.isPetOwnedBy(authentication.name, #petId)")
+    public ResponseEntity<String> uploadImage(@PathVariable String petId,
+                                              @RequestParam("file") MultipartFile file) {
+        String fileName = petService.uploadPetPhoto(petId, file);
+        return ResponseEntity.ok(fileName);
+    }
+
+    @PutMapping("/weight") // URL'den {petId} kısmını kaldırdık
+    // #petId yerine #dto.petId kontrolü yapıyoruz ve CLINIC rolünü ekliyoruz:
+    @PreAuthorize("hasRole('ADMIN') or hasRole('CLINIC') or (hasRole('OWNER') and @petService.isPetOwnedBy(authentication.name, #dto.petId))")
+    public ResponseEntity<PetResponseDTO> updatePetWeight(@RequestBody PetWeightUpdateRequestDTO dto) {
+        // Service metodun muhtemelen (String petId, DTO dto) veya sadece (DTO dto) alıyordur.
+        // Eğer (id, dto) alıyorsa:
+        return ResponseEntity.ok(petService.updatePetWeight(dto.getPetId(), dto));
+    }
     /**
      * DELETE:
      * - ADMIN: hepsi
@@ -88,5 +111,14 @@ public class PetController {
     public ResponseEntity<Void> deletePet(@PathVariable String petId) {
         petService.deletePet(petId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PetResponseDTO> getByOwnerPhoneAndPetName(
+            @RequestParam String phone,
+            @RequestParam String petName
+    ) {
+        PetResponseDTO dto = petService.getPetByPhoneNumberAndPetName(phone, petName);
+        return ResponseEntity.ok(dto);
     }
 }

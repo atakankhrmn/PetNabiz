@@ -59,6 +59,48 @@ public class SlotController {
     }
 
     /**
+     * All:
+     * - herkes (login) görebilir (admin/clinic/owner)
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @slotService.isClinicOwnerOfVet(authentication.name, #vetId))")
+    public ResponseEntity<List<SlotResponseDTO>> getAllSlots(
+            @RequestParam String vetId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(slotService.getAllSlots(vetId, date));
+    }
+
+    /**
+     * Slot Silme:
+     * - ADMIN her slotu silebilir.
+     * - CLINIC sadece kendi bünyesindeki veterinerin slotunu silebilir.
+     */
+    @DeleteMapping("/{slotId}")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @slotService.isClinicOwnerOfSlot(authentication.name, #slotId))")
+    public ResponseEntity<Void> deleteSlot(@PathVariable Long slotId) {
+        slotService.deleteSlot(slotId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Available by date range + city + district:
+     * - herkes (login) görebilir (admin/clinic/owner)
+     */
+    @GetMapping("/available/range")
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC','OWNER')")
+    public ResponseEntity<List<SlotResponseDTO>> getAvailableSlotsByDateRangeCityDistrict(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam String city,
+            @RequestParam String district
+    ) {
+        return ResponseEntity.ok(
+                slotService.getAvailableSlotsByDateRangeCityDistrict(startDate, endDate, city, district)
+        );
+    }
+
+    /**
      * Book:
      * - ADMIN her şey
      * - OWNER sadece kendi pet'i ile book edebilir
@@ -68,9 +110,10 @@ public class SlotController {
     public ResponseEntity<?> bookSlot(
             @PathVariable Long slotId,
             @RequestBody SlotBookRequestDTO req
+
     ) {
         try {
-            AppointmentResponseDTO created = slotService.bookSlot(slotId, req.getPetId());
+            AppointmentResponseDTO created = slotService.bookSlot(slotId, req.getPetId(), req.getReason());
             return ResponseEntity.ok(created);
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(

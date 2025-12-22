@@ -10,7 +10,7 @@ import java.util.List;
 public class MedicalRecord {
 
     @Id
-    @Column(name = "record_id", length = 20)
+    @Column(name = "record_id", length = 40)
     private String recordId;
 
 

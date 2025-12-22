@@ -48,15 +48,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     );
 
 
-    // 5) STATUS bazlı sorgular
-    List<Appointment> findByStatus(String status);
-
-    List<Appointment> findByStatusAndDateBetween(
-            String status,
-            LocalDate startDate,
-            LocalDate endDate
-    );
-
 
     // 6) Müsaitlik / çakışma kontrolü (availability check)
     // Belirli vet, belirli gün, belirli saat aralığında randevu VAR MI?
@@ -82,5 +73,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             LocalDate startDate,
             LocalDate endDate
     );
+
 
 }

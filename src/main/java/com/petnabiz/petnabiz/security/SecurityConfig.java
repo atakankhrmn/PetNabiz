@@ -7,6 +7,9 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import java.nio.charset.StandardCharsets;
+
 
 @Configuration
 @EnableMethodSecurity // @PreAuthorize aktif
@@ -18,8 +21,20 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
 
         http.authorizeHttpRequests(auth -> auth
+
+                .requestMatchers(
+                        "/", "/index.html",
+                        "/favicon.ico",
+                        "/assets/**",
+                        "/static/**",
+                        "/css/**", "/js/**", "/img/**"
+                ).permitAll()
+
+
                 // Auth endpoints (login/register vs) -> açık
                 .requestMatchers("/auth/**", "/api/auth/**").permitAll()
+
+                .requestMatchers("/uploads/**").permitAll()
 
                 /**
                  * CLINIC APPLICATIONS
@@ -64,7 +79,7 @@ public class SecurityConfig {
                  * Controller: ADMIN tüm petler; OWNER /my, get/update/delete kendi pet’i (method’da check var)
                  * O yüzden burada ADMIN+OWNER yeter.
                  */
-                .requestMatchers("/api/pets/**").hasAnyRole("ADMIN", "OWNER")
+                .requestMatchers("/api/pets/**").hasAnyRole("ADMIN", "OWNER", "CLINIC")
 
                 /**
                  * SLOTS
@@ -101,7 +116,16 @@ public class SecurityConfig {
         );
 
         // Siz plain-text {noop} ile basic auth yapıyordunuz; burayı öyle bırakıyorum
-        http.httpBasic(Customizer.withDefaults());
+        AuthenticationEntryPoint noPopupEntryPoint = (request, response, authException) -> {
+            response.setStatus(401);
+            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            response.setContentType("application/json");
+            // ⚠️ WWW-Authenticate header koymuyoruz -> browser popup çıkarmıyor
+            response.getWriter().write("{\"error\":\"UNAUTHORIZED\",\"message\":\"Login required\"}");
+        };
+
+        http.httpBasic(basic -> basic.authenticationEntryPoint(noPopupEntryPoint));
+
 
         return http.build();
     }

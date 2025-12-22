@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class VeterinaryCreateRequestDTO {
-    private String vetId;
+
     private String firstName;
     private String lastName;
     private String phoneNumber;

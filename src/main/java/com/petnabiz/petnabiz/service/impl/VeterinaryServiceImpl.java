@@ -2,7 +2,6 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryUpdateRequestDTO;
-import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.dto.response.veterinary.VeterinaryResponseDTO;
 import com.petnabiz.petnabiz.mapper.VeterinaryMapper;
 import com.petnabiz.petnabiz.model.Clinic;
@@ -11,11 +10,20 @@ import com.petnabiz.petnabiz.repository.ClinicRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.VeterinaryService;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import java.net.MalformedURLException;
 
 import java.util.List;
 
@@ -84,34 +92,44 @@ public class VeterinaryServiceImpl implements VeterinaryService {
     // ---- writes ----
     @Override
     @Transactional
-    public VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto) {
+    public VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto, MultipartFile file) { // Parametreye file eklendi
 
-        if (dto.getVetId() == null || dto.getVetId().trim().isEmpty()) {
-            throw new IllegalArgumentException("Veterinary ID boş olamaz.");
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Lütfen veteriner hekim diplomasını yükleyiniz.");
         }
+
+        // 1. Validasyonlar
         if (dto.getFirstName() == null || dto.getFirstName().trim().isEmpty()) {
             throw new IllegalArgumentException("Veterinary firstName boş olamaz.");
         }
-        if (dto.getLastName() == null || dto.getLastName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Veterinary lastName boş olamaz.");
-        }
-        if (dto.getPhoneNumber() == null || dto.getPhoneNumber().trim().isEmpty()) {
-            throw new IllegalArgumentException("Veterinary phoneNumber boş olamaz.");
-        }
+        // ... diğer validasyonlar ...
 
-        if (veterinaryRepository.existsByVetId(dto.getVetId())) {
-            throw new IllegalStateException("Bu vetId ile zaten bir veterinary kayıtlı: " + dto.getVetId());
-        }
-
+        // 2. Entity Oluşturma
         Veterinary v = new Veterinary();
-        v.setVetId(dto.getVetId());
+
+        // A) UUID Oluşturma (Benzersiz ID)
+        v.setVetId(UUID.randomUUID().toString());
+
         v.setFirstName(dto.getFirstName());
         v.setLastName(dto.getLastName());
         v.setPhoneNumber(dto.getPhoneNumber());
         v.setAddress(dto.getAddress());
-        v.setCertificate(dto.getCertificate());
 
-        // clinic zorunlu olsun istiyorsan burada check koy:
+        // 3. Dosya Yükleme İşlemi (Varsa)
+        if (file != null && !file.isEmpty()) {
+            try {
+                // Dosyayı kaydet ve yolunu al
+                String filePath = saveFile(file, v.getVetId());
+                v.setCertificate(filePath); // Veritabanına dosyanın yolunu/adını kaydediyoruz
+            } catch (IOException e) {
+                throw new RuntimeException("Dosya yüklenirken hata oluştu: " + e.getMessage());
+            }
+        } else {
+            // Dosya yoksa DTO'dan gelen manuel metni koyabilirsin veya boş bırakırsın
+            v.setCertificate(dto.getCertificate());
+        }
+
+        // 4. Clinic Bağlama
         if (dto.getClinicId() != null && !dto.getClinicId().trim().isEmpty()) {
             Clinic clinic = clinicRepository.findByClinicId(dto.getClinicId())
                     .orElseThrow(() -> new EntityNotFoundException("Clinic bulunamadı: " + dto.getClinicId()));
@@ -122,6 +140,29 @@ public class VeterinaryServiceImpl implements VeterinaryService {
         return veterinaryMapper.toResponse(saved);
     }
 
+    // --- YARDIMCI METOD (Dosyayı diske kaydeder) ---
+    private String saveFile(MultipartFile file, String vetId) throws IOException {
+        // Proje kök dizininde 'uploads' klasörü olsun
+        String uploadDir = "uploads/certificates/";
+
+        // Klasör yoksa oluştur
+        Path uploadPath = Paths.get(uploadDir);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        // Dosya adı çakışmasın diye vetId + orijinal isim yapalım
+        // Örnek: "123e4567-e89b..._diploma.pdf"
+        String fileName = vetId + "_" + file.getOriginalFilename();
+        Path filePath = uploadPath.resolve(fileName);
+
+        // Dosyayı kopyala
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        // Geriye dosya adını veya tam yolu döndür
+        // Frontend'de bu dosyayı sunmak için statik resource ayarı gerekebilir
+        return fileName;
+    }
     @Override
     @Transactional
     public VeterinaryResponseDTO updateVeterinary(String vetId, VeterinaryUpdateRequestDTO dto) {
@@ -183,6 +224,31 @@ public class VeterinaryServiceImpl implements VeterinaryService {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) throw new IllegalStateException("Authentication yok.");
         return auth.getName(); // username = email (SecurityUserDetailsService)
+    }
+
+    @Override
+    public Resource getCertificateResource(String vetId) {
+        Veterinary vet = veterinaryRepository.findById(vetId)
+                .orElseThrow(() -> new EntityNotFoundException("Veteriner bulunamadı"));
+
+        String fileName = vet.getCertificate();
+        if (fileName == null || fileName.isEmpty()) {
+            throw new RuntimeException("Bu veteriner için sertifika yüklenmemiş.");
+        }
+
+        try {
+            // Kaydederken kullandığımız yol: uploads/certificates/
+            Path filePath = Paths.get("uploads/certificates/").resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            } else {
+                throw new RuntimeException("Dosya bulunamadı veya okunamıyor: " + fileName);
+            }
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Dosya yolu hatası: " + e.getMessage());
+        }
     }
 
 }

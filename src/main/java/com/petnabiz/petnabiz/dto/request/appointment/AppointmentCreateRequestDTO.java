@@ -10,6 +10,5 @@ public class AppointmentCreateRequestDTO {
     private String petId;         // opsiyonel (entity nullable)
     private String vetId;         // zorunlu
     private LocalDateTime dateTime; // zorunlu
-    private String status;        // opsiyonel
     private String reason;        // opsiyonel
 }

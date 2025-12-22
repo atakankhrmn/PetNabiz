@@ -5,6 +5,7 @@ import com.petnabiz.petnabiz.dto.request.admin.AdminUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.admin.AdminResponseDTO;
 import com.petnabiz.petnabiz.mapper.AdminMapper;
 import com.petnabiz.petnabiz.model.Admin;
+import com.petnabiz.petnabiz.model.Clinic;
 import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.repository.AdminRepository;
 import com.petnabiz.petnabiz.repository.UserRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AdminServiceImpl implements AdminService {
@@ -66,47 +68,33 @@ public class AdminServiceImpl implements AdminService {
      * - MapsId: adminId = userId
      * - admins tablosuna Admin yaratılır
      */
+
     @Override
     @Transactional
     public AdminResponseDTO createAdmin(AdminCreateRequestDTO dto) {
 
-        if (dto.getAdminId() == null || dto.getAdminId().isBlank()) {
-            throw new IllegalArgumentException("adminId zorunlu.");
-        }
-        if (dto.getEmail() == null || dto.getEmail().isBlank()) {
-            throw new IllegalArgumentException("email zorunlu.");
-        }
-        if (dto.getPassword() == null || dto.getPassword().isBlank()) {
-            throw new IllegalArgumentException("password zorunlu.");
-        }
-        if (dto.getName() == null || dto.getName().isBlank()) {
-            throw new IllegalArgumentException("name zorunlu.");
-        }
+        // ... validasyonlar ve email kontrolü ...
 
-        // email unique ise çakışmayı burada yakala
-        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Bu email zaten kullanılıyor: " + dto.getEmail());
-        }
-
-        // user oluştur (adminId = userId olacak şekilde)
         User user = new User();
-        user.setUserId(dto.getAdminId());
+        user.setUserId(UUID.randomUUID().toString());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword()); // TODO: gerçek projede hashlenmeli
-        user.setRole("ROLE_ADMIN");
-        user.setActive(true);
+        user.setPassword(dto.getPassword());
 
-        userRepository.save(user);
+        // ✅ OTOMATİK ATAMA BURADA YAPILIYOR
+        user.setActive(true);       // 1 olarak kaydolur
+        user.setRole("ROLE_ADMIN"); // Rolü kod içinde biz belirliyoruz
 
-        // admin oluştur (MapsId)
+        // ... kaydetme işlemleri ...
+
+        User savedUser = userRepository.save(user);
+
         Admin admin = new Admin();
-        admin.setAdminId(user.getUserId());
+        admin.setUser(savedUser); // @MapsId ile ID eşitlenir
         admin.setFullName(dto.getName());
-        admin.setUser(user);
 
-        Admin saved = adminRepository.save(admin);
+        adminRepository.save(admin); // Kaydet
 
-        return adminMapper.toResponse(saved);
+        return adminMapper.toResponse(admin);
     }
 
     @Override

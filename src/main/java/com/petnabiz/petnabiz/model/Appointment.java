@@ -18,7 +18,6 @@ public class Appointment {
     @Column(nullable = false)
     private LocalTime time;
 
-    private String status; //enum olacak o yüzden column eklemedik
     private String reason; //opsiyonel
 
     @ManyToOne
@@ -28,6 +27,9 @@ public class Appointment {
     @ManyToOne
     @JoinColumn(name = "vet_id",nullable = false)
     private Veterinary veterinary;
+
+    @Column(nullable = false)
+    private Long slotId;
 
 
     public Appointment() {}
@@ -59,14 +61,6 @@ public class Appointment {
         this.time = time;
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     public String getReason() {
         return reason;
     }
@@ -89,5 +83,13 @@ public class Appointment {
 
     public void setVeterinary(Veterinary veterinary) {
         this.veterinary = veterinary;
+    }
+
+    public Long getSlotId() {
+        return slotId;
+    }
+
+    public void setSlot(Long SlotId) {
+        this.slotId = SlotId;
     }
 }

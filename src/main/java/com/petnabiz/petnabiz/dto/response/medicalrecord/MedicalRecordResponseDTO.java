@@ -1,5 +1,6 @@
 package com.petnabiz.petnabiz.dto.response.medicalrecord;
 
+import com.petnabiz.petnabiz.dto.response.medication.MedicationResponseDTO;
 import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
@@ -12,6 +13,8 @@ public class MedicalRecordResponseDTO {
 
     private String petId;
     private String vetId;
+    private String vetName;
+    private String clinicName;
 
-    private List<String> medicationIds; // şimdilik ID listesi (en garanti)
+    private List<MedicationResponseDTO> medications; // şimdilik ID listesi (en garanti)
 }

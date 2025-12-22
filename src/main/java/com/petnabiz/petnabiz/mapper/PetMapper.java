@@ -22,6 +22,9 @@ public class PetMapper {
 
         dto.setOwnerId(p.getOwner() != null ? p.getOwner().getOwnerId() : null);
 
+        String ownerName = p.getOwner().getFirstName() + " " + p.getOwner().getLastName();
+        dto.setOwnerName(ownerName);
+
         if (p.getAppointments() != null) {
             List<String> ids = p.getAppointments().stream()
                     .map(a -> a.getAppointmentId())

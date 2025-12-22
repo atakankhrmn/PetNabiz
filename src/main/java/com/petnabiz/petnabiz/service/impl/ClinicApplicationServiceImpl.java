@@ -117,6 +117,7 @@ public class ClinicApplicationServiceImpl implements ClinicApplicationService {
         dto.setDistrict(app.getDistrict());
         dto.setAddress(app.getAddress());
         dto.setStatus(app.getStatus());
+        dto.setDocumentPath(app.getDocumentPath());
         return dto;
     }
 }

@@ -22,6 +22,8 @@ public interface PetRepository extends JpaRepository<Pet, String> {
 
     List<Pet> findByOwner_OwnerId(String ownerId);
 
+    Optional<Pet> findByNameIgnoreCaseAndOwner_Phone(String name, String phone);
+
 
     // 3) Name search
     Optional<Pet> findByName(String name);
@@ -57,4 +59,6 @@ public interface PetRepository extends JpaRepository<Pet, String> {
     List<Pet> findByWeightBetween(double min, double max);
 
     List<Pet> findByOwner_User_Email(String email);
+
+    boolean existsByOwner_OwnerIdAndNameIgnoreCase(String ownerId, String trim);
 }

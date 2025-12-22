@@ -4,6 +4,8 @@ import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.veterinary.VeterinaryUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.dto.response.veterinary.VeterinaryResponseDTO;
+import org.springframework.core.io.Resource;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -15,7 +17,7 @@ public interface VeterinaryService {
 
     List<VeterinaryResponseDTO> getVeterinariesByClinicId(String clinicId);
 
-    VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto);
+    VeterinaryResponseDTO createVeterinary(VeterinaryCreateRequestDTO dto ,  MultipartFile file);
 
     VeterinaryResponseDTO updateVeterinary(String vetId, VeterinaryUpdateRequestDTO dto);
 
@@ -27,4 +29,6 @@ public interface VeterinaryService {
     boolean isClinicOwnerOfVet(String clinicEmail, String vetId);
 
     public List<VeterinaryResponseDTO> getAllMyVeterinaries();
+
+    public Resource getCertificateResource(String vetId);
 }

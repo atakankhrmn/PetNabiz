@@ -2,6 +2,7 @@ package com.petnabiz.petnabiz.service;
 
 import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetWeightUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 
 import java.util.List;
@@ -25,8 +26,15 @@ public interface PetService {
 
     PetResponseDTO updatePet(String petId, PetUpdateRequestDTO dto);
 
+    String uploadPetPhoto(String petId, org.springframework.web.multipart.MultipartFile file);
+
     void deletePet(String petId);
 
     // Security helper for SpEL
     boolean isPetOwnedBy(String ownerEmail, String petId);
+
+    PetResponseDTO getPetByPhoneNumberAndPetName(String Phone, String petName);
+
+    PetResponseDTO updatePetWeight(String petId, PetWeightUpdateRequestDTO dto);
+
 }

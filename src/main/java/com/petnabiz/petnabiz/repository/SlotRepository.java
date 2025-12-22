@@ -20,11 +20,12 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
     );
 
     // Tek bir slotu (vet + date + time)
-    Optional<Slot> findByVeterinary_VetIdAndDateAndTime(
+    List<Slot> findByVeterinary_VetIdAndDate(
             String vetId,
-            LocalDate date,
-            LocalTime time
+            LocalDate date
     );
+
+    Optional<Slot> findBySlotId(Long slotId);
 
     // Slotu atomik şekilde rezerve et (çakışma engelli)
     @Modifying
@@ -35,4 +36,30 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
           AND s.isBooked = false
     """)
     int bookSlot(@Param("slotId") Long slotId);
+
+
+    @Query("""
+    SELECT s
+    FROM Slot s
+    JOIN s.veterinary v
+    JOIN v.clinic c
+    WHERE s.isBooked = false
+      AND s.date BETWEEN :startDate AND :endDate
+      AND c.city = :city
+      AND c.district = :district
+      AND (
+            s.date > :today
+            OR (s.date = :today AND s.time > :now)
+          )
+""")
+    List<Slot> findAvailableSlotsByDateRangeCityDistrict(
+            LocalDate startDate,
+            LocalDate endDate,
+            String city,
+            String district,
+            LocalDate today,
+            LocalTime now
+    );
+
+
 }

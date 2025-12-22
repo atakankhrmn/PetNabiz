@@ -16,6 +16,8 @@ import com.petnabiz.petnabiz.service.MedicationService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -184,6 +186,7 @@ public class MedicationServiceImpl implements MedicationService {
     @Transactional
     public MedicationResponseDTO createMedication(MedicationCreateRequestDTO dto) {
 
+        // 1. Validasyonlar
         if (dto.getMedicineId() == null || dto.getMedicineId().isBlank()) {
             throw new IllegalArgumentException("Medication için medicineId zorunlu.");
         }
@@ -194,20 +197,26 @@ public class MedicationServiceImpl implements MedicationService {
             throw new IllegalArgumentException("End tarihi start tarihinden önce olamaz.");
         }
 
+        // 2. Medicine (İlaç Türü) Bulma
         Medicine medicine = medicineRepository.findByMedicineId(dto.getMedicineId())
                 .orElseThrow(() -> new IllegalArgumentException("Medicine bulunamadı: " + dto.getMedicineId()));
 
+        // 3. MedicalRecord (Hangi muayeneye ait?) Bulma
         MedicalRecord record = null;
         if (dto.getRecordId() != null && !dto.getRecordId().isBlank()) {
             record = medicalRecordRepository.findByRecordId(dto.getRecordId())
                     .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + dto.getRecordId()));
+        } else {
+            // Opsiyonel: Eğer ilacın mutlaka bir kayda bağlı olması gerekiyorsa buraya hata fırlatabilirsin.
+            // throw new IllegalArgumentException("İlaç kaydı için Record ID zorunludur.");
         }
 
         Medication m = new Medication();
 
-        if (dto.getMedicationId() != null && !dto.getMedicationId().isBlank()) {
-            m.setMedicationId(dto.getMedicationId());
-        }
+        // --- DEĞİŞİKLİK BURADA ---
+        // Frontend'den ID beklemiyoruz, Backend olarak biz üretiyoruz:
+        m.setMedicationId(UUID.randomUUID().toString());
+        // -------------------------
 
         m.setInstructions(dto.getInstructions());
         m.setStart(dto.getStart());

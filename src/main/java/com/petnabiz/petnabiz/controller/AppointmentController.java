@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -114,15 +115,53 @@ public class AppointmentController {
     }
 
     /**
-     * 8) Appointment sil
-     * - ADMIN: silebilir
-     * - CLINIC: genelde silebilir (iş kuralına göre)
+     * 8) Appointment iptal et (slot'u tekrar boşaltır)
+     * - ADMIN/CLINIC: iptal edebilir
      * - OWNER: sadece kendininki
      */
-    @DeleteMapping("/{appointmentId}")
+    @PostMapping("/{appointmentId}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @appointmentService.isAppointmentOwnedBy(authentication.name, #appointmentId))")
-    public ResponseEntity<Void> deleteAppointment(@PathVariable String appointmentId) {
-        appointmentService.deleteAppointment(appointmentId);
+    public ResponseEntity<Void> cancelAppointment(@PathVariable String appointmentId) {
+        appointmentService.cancelAppointment(appointmentId);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * 9) Appointment ID vererek Clinic ID'sini getir.
+     * - Frontend'de randevu detayına bakarken kliniğe gitmek için gerekebilir.
+     * - ADMIN, CLINIC ve ilgili OWNER erişebilir.
+     */
+    @GetMapping("/{appointmentId}/clinic-id")
+    @PreAuthorize("hasAnyRole('ADMIN','CLINIC') or (hasRole('OWNER') and @appointmentService.isAppointmentOwnedBy(authentication.name, #appointmentId))")
+    public ResponseEntity<String> getClinicIdByAppointmentId(@PathVariable String appointmentId) {
+        return ResponseEntity.ok(appointmentService.getClinicIdByAppointmentId(appointmentId));
+    }
+
+    /**
+     * 10) Bir kliniğin önümüzdeki 2 hafta (Bugün dahil) içindeki tüm randevularını getirir.
+     * - Kullanım: Dashboard'da veya takvimde ileriye dönük planlama için.
+     * - Erişim: Sadece o kliniğin sahibi (CLINIC) veya ADMIN.
+     */
+    @GetMapping("/clinic/{clinicId}/upcoming")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @clinicService.isClinicSelf(authentication.name, #clinicId))")
+    public ResponseEntity<List<AppointmentResponseDTO>> getUpcomingAppointmentsByClinic(@PathVariable String clinicId) {
+        return ResponseEntity.ok(appointmentService.getUpcomingAppointmentsByClinicId(clinicId));
+    }
+
+    /**
+     * 11) Belirli bir tarih aralığındaki randevuları getirir.
+     * Kullanım: /api/appointments/clinic/{clinicId}/history?startDate=2024-01-01&endDate=2024-12-31
+     * Erişim: ADMIN veya O Kliniğin Sahibi (CLINIC)
+     */
+    @GetMapping("/clinic/{clinicId}/history")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CLINIC') and @clinicService.isClinicSelf(authentication.name, #clinicId))")
+    public ResponseEntity<List<AppointmentResponseDTO>> getAppointmentsByDateRange(
+            @PathVariable String clinicId,
+            @RequestParam("startDate") LocalDate startDate,
+            @RequestParam("endDate") LocalDate endDate
+    ) {
+        return ResponseEntity.ok(appointmentService.getAppointmentsByDateRangeAndClinicID(startDate, endDate, clinicId));
+    }
+
+
 }

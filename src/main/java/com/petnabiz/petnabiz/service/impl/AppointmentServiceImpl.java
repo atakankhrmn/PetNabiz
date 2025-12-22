@@ -6,9 +6,11 @@ import com.petnabiz.petnabiz.dto.response.appointment.AppointmentResponseDTO;
 import com.petnabiz.petnabiz.mapper.AppointmentMapper;
 import com.petnabiz.petnabiz.model.Appointment;
 import com.petnabiz.petnabiz.model.Pet;
+import com.petnabiz.petnabiz.model.Slot;
 import com.petnabiz.petnabiz.model.Veterinary;
 import com.petnabiz.petnabiz.repository.AppointmentRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
+import com.petnabiz.petnabiz.repository.SlotRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.AppointmentService;
 import jakarta.persistence.EntityNotFoundException;
@@ -19,21 +21,25 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service("appointmentService") // @PreAuthorize içindeki @appointmentService için net bean adı
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final PetRepository petRepository;
+    private final SlotRepository slotRepository;
     private final VeterinaryRepository veterinaryRepository;
     private final AppointmentMapper appointmentMapper;
 
     public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
-                                  PetRepository petRepository,
+                                  PetRepository petRepository, SlotRepository slotRepository,
                                   VeterinaryRepository veterinaryRepository,
                                   AppointmentMapper appointmentMapper) {
         this.appointmentRepository = appointmentRepository;
         this.petRepository = petRepository;
+        this.slotRepository = slotRepository;
         this.veterinaryRepository = veterinaryRepository;
         this.appointmentMapper = appointmentMapper;
     }
@@ -180,7 +186,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setVeterinary(vet);
         appointment.setPet(pet);
 
-        if (dto.getStatus() != null) appointment.setStatus(dto.getStatus());
         if (dto.getReason() != null) appointment.setReason(dto.getReason());
 
         Appointment saved = appointmentRepository.save(appointment);
@@ -235,21 +240,68 @@ public class AppointmentServiceImpl implements AppointmentService {
             existing.setVeterinary(newVet);
         }
 
-        if (dto.getStatus() != null) existing.setStatus(dto.getStatus());
         if (dto.getReason() != null) existing.setReason(dto.getReason());
 
         Appointment saved = appointmentRepository.save(existing);
         return appointmentMapper.toResponse(saved);
     }
 
+    @Transactional
+    public void cancelAppointment(String appointmentId) {
+        // 1. Önce randevuyu veritabanından buluyoruz.
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("Randevu bulunamadı: " + appointmentId));
+
+        // 2. Randevu içindeki Slot nesnesine erişiyoruz.
+        // DİKKAT: Appointment modeline eklediğin 'private Slot slot' alanı sayesinde buraya ulaşıyoruz.
+        Slot slot = slotRepository.findBySlotId(appointment.getSlotId()).orElse(null);
+
+        if (slot != null) {
+            // 3. Slotun durumunu tekrar rezerve edilebilir (0 / false) yapıyoruz.
+            slot.setBooked(false);
+            slotRepository.save(slot);
+            System.out.println("Slot id: " + slot.getSlotId() + " başarıyla boşa çıkarıldı.");
+        }
+
+        // 4. Randevu kaydını siliyoruz.
+        appointmentRepository.delete(appointment);
+    }
+
+    @Override
+    public String getClinicIdByAppointmentId(String appointmentId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Appointment bulunamadı id: " + appointmentId));
+
+        // İlişki zinciri: Appointment -> Veterinary -> Clinic -> ClinicId
+        return appointment.getVeterinary().getClinic().getClinicId();
+    }
+
     @Override
     @Transactional
-    public void deleteAppointment(String appointmentId) {
-        // SİZDE BUG VARDI:
-        // existsById/deleteById genelde @Id (PK) bekler. appointmentId alanınız PK olmayabilir.
-        Appointment existing = appointmentRepository.findByAppointmentId(appointmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Silinecek appointment bulunamadı: " + appointmentId));
+    public List<AppointmentResponseDTO> getUpcomingAppointmentsByClinicId(String clinicId) {
+        // 1. Tarihleri hesapla
+        LocalDate startDate = LocalDate.now(); // Bugün
+        LocalDate endDate = startDate.plusWeeks(2); // 14 gün sonrası
 
-        appointmentRepository.delete(existing);
+        // 2. Veritabanından çek
+        List<Appointment> appointments = appointmentRepository
+                .findByVeterinary_Clinic_ClinicIdAndDateBetween(clinicId, startDate, endDate);
+
+        // 3. DTO'ya çevir ve döndür
+        return appointments.stream()
+                .map(appointmentMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public List<AppointmentResponseDTO> getAppointmentsByDateRangeAndClinicID(LocalDate startDate, LocalDate endDate, String clinicID) {
+        // 2. Veritabanından çek
+        List<Appointment> appointments = appointmentRepository
+                .findByVeterinary_Clinic_ClinicIdAndDateBetween(clinicID, startDate, endDate);
+        // 3. DTO'ya çevir ve döndür
+        return appointments.stream()
+                .map(appointmentMapper::toResponse)
+                .collect(Collectors.toList());
     }
 }

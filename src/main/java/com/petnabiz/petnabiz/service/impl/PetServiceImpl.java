@@ -2,6 +2,7 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.dto.request.pet.PetCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.pet.PetUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.pet.PetWeightUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.pet.PetResponseDTO;
 import com.petnabiz.petnabiz.mapper.PetMapper;
 import com.petnabiz.petnabiz.model.Pet;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service("petService") // @PreAuthorize içinde @petService çağıracağız
 public class PetServiceImpl implements PetService {
@@ -102,6 +104,7 @@ public class PetServiceImpl implements PetService {
 
     @Override
     @Transactional
+
     public PetResponseDTO createPet(PetCreateRequestDTO dto) {
 
         if (dto.getSpecies() == null || dto.getSpecies().isBlank()) {
@@ -109,13 +112,6 @@ public class PetServiceImpl implements PetService {
         }
         if (dto.getGender() == null || dto.getGender().isBlank()) {
             throw new IllegalArgumentException("Pet için gender zorunlu.");
-        }
-        if (dto.getPetId() == null || dto.getPetId().isBlank()) {
-            // Pet entity'de @Id String -> zorunlu
-            throw new IllegalArgumentException("Pet için petId zorunlu.");
-        }
-        if (petRepository.existsByPetId(dto.getPetId())) {
-            throw new IllegalStateException("Bu petId zaten kullanılıyor: " + dto.getPetId());
         }
 
         // OWNER ise ownerId'yi DTO'dan ALMIYORUZ. Kendinden çıkarıyoruz.
@@ -137,8 +133,30 @@ public class PetServiceImpl implements PetService {
                     .orElseThrow(() -> new IllegalArgumentException("Owner bulunamadı (email): " + email));
         }
 
+        String newName = dto.getName();
+        if (newName == null || newName.isBlank()) {
+            throw new IllegalArgumentException("Pet için name zorunlu.");
+        }
+
+        boolean nameExists = petRepository.existsByOwner_OwnerIdAndNameIgnoreCase(
+                owner.getOwnerId(), // ownerId alanın farklıysa düzelt
+                newName.trim()
+        );
+
+        if (nameExists) {
+            throw new IllegalArgumentException("Bu pet sahibi için aynı isimde bir pet zaten var: " + newName.trim());
+        }
+
+
+        // ✅ petId backend'de üretilir (DTO'dan gelmez)
+        String newPetId = UUID.randomUUID().toString();
+        while (petRepository.existsByPetId(newPetId)) { // aşırı düşük ihtimal ama garanti
+            newPetId = UUID.randomUUID().toString();
+        }
+
         Pet pet = new Pet();
-        pet.setPetId(dto.getPetId());
+        pet.setPetId(newPetId);
+
         pet.setName(dto.getName());
         pet.setSpecies(dto.getSpecies());
         pet.setBreed(dto.getBreed());
@@ -152,6 +170,7 @@ public class PetServiceImpl implements PetService {
         Pet saved = petRepository.save(pet);
         return petMapper.toResponse(saved);
     }
+
 
     @Override
     @Transactional
@@ -186,6 +205,41 @@ public class PetServiceImpl implements PetService {
         return petMapper.toResponse(saved);
     }
 
+    // PetServiceImpl.java içine eklenecek yeni metodlar
+
+    private final String uploadDir = "uploads/pets/";
+
+    @Override
+    @Transactional
+    public String uploadPetPhoto(String petId, org.springframework.web.multipart.MultipartFile file) {
+        // 1. Pet kontrolü
+        Pet pet = petRepository.findByPetId(petId)
+                .orElseThrow(() -> new EntityNotFoundException("Pet bulunamadı: " + petId));
+
+        try {
+            // 2. Klasör yoksa oluştur
+            java.io.File directory = new java.io.File(uploadDir);
+            if (!directory.exists()) directory.mkdirs();
+
+            // 3. Benzersiz dosya adı oluştur (Örn: petid_timestamp.jpg)
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            String fileName = petId + "_" + System.currentTimeMillis() + extension;
+
+            // 4. Dosyayı diske kaydet
+            java.nio.file.Path filePath = java.nio.file.Paths.get(uploadDir + fileName);
+            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            // 5. Veritabanında URL'i güncelle (Sadece dosya adını saklamak yeterli)
+            pet.setPhotoUrl(fileName);
+            petRepository.save(pet);
+
+            return fileName;
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Dosya yüklenirken hata oluştu: " + e.getMessage());
+        }
+    }
+
     @Override
     @Transactional
     public void deletePet(String petId) {
@@ -194,4 +248,31 @@ public class PetServiceImpl implements PetService {
 
         petRepository.delete(existing);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PetResponseDTO getPetByPhoneNumberAndPetName(String phone, String petName) {
+
+        Pet pet = petRepository
+                .findByNameIgnoreCaseAndOwner_Phone(petName, phone) // ⚠️ sıra DÜZELTİLDİ
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Bu telefon numarasına ait '" + petName + "' isimli pet bulunamadı."
+                        )
+                );
+
+        return petMapper.toResponse(pet);
+    }
+
+    public PetResponseDTO updatePetWeight(String petId, PetWeightUpdateRequestDTO dto) {
+
+        Pet existing = petRepository.findByPetId(petId)
+                .orElseThrow(() -> new EntityNotFoundException("Pet bulunamadı: " + petId));
+
+        if (dto.getWeight() != null) existing.setWeight(dto.getWeight());
+
+        Pet saved = petRepository.save(existing);
+        return petMapper.toResponse(saved);
+    }
+
 }

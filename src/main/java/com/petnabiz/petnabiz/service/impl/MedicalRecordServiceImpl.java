@@ -2,19 +2,22 @@ package com.petnabiz.petnabiz.service.impl;
 
 import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordCreateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.medicalrecord.MedicalRecordUpdateRequestDTO;
+import com.petnabiz.petnabiz.dto.request.medication.MedicationUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.medicalrecord.MedicalRecordResponseDTO;
 import com.petnabiz.petnabiz.mapper.MedicalRecordMapper;
 import com.petnabiz.petnabiz.model.MedicalRecord;
+import com.petnabiz.petnabiz.model.Medication;
 import com.petnabiz.petnabiz.model.Pet;
 import com.petnabiz.petnabiz.model.Veterinary;
 import com.petnabiz.petnabiz.repository.MedicalRecordRepository;
+import com.petnabiz.petnabiz.repository.MedicationRepository;
 import com.petnabiz.petnabiz.repository.PetRepository;
 import com.petnabiz.petnabiz.repository.VeterinaryRepository;
 import com.petnabiz.petnabiz.service.MedicalRecordService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.util.UUID;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -25,15 +28,17 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final PetRepository petRepository;
     private final VeterinaryRepository veterinaryRepository;
     private final MedicalRecordMapper medicalRecordMapper;
+    private final MedicationRepository medicationRepository;
 
     public MedicalRecordServiceImpl(MedicalRecordRepository medicalRecordRepository,
                                     PetRepository petRepository,
                                     VeterinaryRepository veterinaryRepository,
-                                    MedicalRecordMapper medicalRecordMapper) {
+                                    MedicalRecordMapper medicalRecordMapper, MedicationRepository medicationRepository) {
         this.medicalRecordRepository = medicalRecordRepository;
         this.petRepository = petRepository;
         this.veterinaryRepository = veterinaryRepository;
         this.medicalRecordMapper = medicalRecordMapper;
+        this.medicationRepository = medicationRepository;
     }
 
     // ---------------------------
@@ -126,10 +131,13 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
                 .toList();
     }
 
+
+
     @Override
     @Transactional
     public MedicalRecordResponseDTO createMedicalRecord(MedicalRecordCreateRequestDTO dto) {
 
+        // 1. Validasyonlar
         if (dto.getPetId() == null || dto.getPetId().isBlank()) {
             throw new IllegalArgumentException("MedicalRecord için petId zorunlu.");
         }
@@ -140,6 +148,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
             throw new IllegalArgumentException("MedicalRecord için date zorunlu.");
         }
 
+        // 2. Pet ve Vet Bulma
         Pet pet = petRepository.findByPetId(dto.getPetId())
                 .orElseThrow(() -> new IllegalArgumentException("Pet bulunamadı: " + dto.getPetId()));
 
@@ -148,10 +157,10 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         MedicalRecord record = new MedicalRecord();
 
-        // Not: recordId client'tan gelmesin daha iyi, ama siz String id kullanıyorsanız şimdilik bırakıyoruz
-        if (dto.getRecordId() != null && !dto.getRecordId().isBlank()) {
-            record.setRecordId(dto.getRecordId());
-        }
+        // --- DEĞİŞİKLİK BURADA ---
+        // Frontend'den ID gelmesini beklemiyoruz, biz üretiyoruz:
+        record.setRecordId(UUID.randomUUID().toString());
+        // -------------------------
 
         record.setDescription(dto.getDescription());
         record.setDate(dto.getDate());
@@ -162,29 +171,46 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         return medicalRecordMapper.toResponse(saved);
     }
 
+    // Service sınıfının başına MedicationRepository'yi inject etmeyi unutma:
+    // private final MedicationRepository medicationRepository;
+
     @Override
     @Transactional
     public MedicalRecordResponseDTO updateMedicalRecord(String recordId, MedicalRecordUpdateRequestDTO dto) {
 
-        MedicalRecord existing = medicalRecordRepository.findByRecordId(recordId)
-                .orElseThrow(() -> new EntityNotFoundException("MedicalRecord bulunamadı: " + recordId));
+        // 1. Ana Kaydı (MedicalRecord) Bul
+        MedicalRecord record = medicalRecordRepository.findById(recordId)
+                .orElseThrow(() -> new IllegalArgumentException("MedicalRecord bulunamadı: " + recordId));
 
-        if (dto.getDate() != null) existing.setDate(dto.getDate());
-        if (dto.getDescription() != null) existing.setDescription(dto.getDescription());
+        // 2. Ana Bilgileri Güncelle
+        if (dto.getDescription() != null) record.setDescription(dto.getDescription());
+        if (dto.getDate() != null) record.setDate(dto.getDate());
 
-        if (dto.getPetId() != null) {
-            Pet newPet = petRepository.findByPetId(dto.getPetId())
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni pet bulunamadı: " + dto.getPetId()));
-            existing.setPet(newPet);
+        // 3. İLAÇLARI GÜNCELLEME MANTIĞI (Cascading Update)
+        if (dto.getMedications() != null && !dto.getMedications().isEmpty()) {
+
+            for (MedicationUpdateRequestDTO medDto : dto.getMedications()) {
+                // Eğer ilacın bir ID'si varsa, mevcut ilacı bulup güncelliyoruz
+                if (medDto.getMedicationId() != null) { // React tarafında medicineId değil medicationId kullanmıştık dikkat
+
+                    Medication existingMed = medicationRepository.findByMedicationId(medDto.getMedicationId())
+                            .orElse(null); // Bulamazsa null dönsün, hata patlamasın
+
+                    if (existingMed != null) {
+                        existingMed.setInstructions(medDto.getInstructions());
+                        existingMed.setStart(medDto.getStart());
+                        existingMed.setEnd(medDto.getEnd());
+
+                        // İlaç türü değiştiyse onu da güncellemek gerekebilir ama şimdilik detayları güncelliyoruz
+                        medicationRepository.save(existingMed);
+                    }
+                }
+                // Eğer ID'si yoksa bu yeni eklenen bir ilaçtır (Opsiyonel: Create mantığı buraya eklenebilir)
+            }
         }
 
-        if (dto.getVetId() != null) {
-            Veterinary newVet = veterinaryRepository.findByVetId(dto.getVetId())
-                    .orElseThrow(() -> new IllegalArgumentException("Yeni veterinary bulunamadı: " + dto.getVetId()));
-            existing.setVeterinary(newVet);
-        }
-
-        MedicalRecord saved = medicalRecordRepository.save(existing);
+        // 4. Kaydet ve Döndür
+        MedicalRecord saved = medicalRecordRepository.save(record);
         return medicalRecordMapper.toResponse(saved);
     }
 
