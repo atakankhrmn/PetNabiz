@@ -27,7 +27,7 @@ public class MedicalRecord {
     @JoinColumn(name = "vet_id",nullable = false)
     private Veterinary veterinary;
 
-    @OneToMany(mappedBy = "medicalRecord")
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Medication> medications;
 
     public MedicalRecord() {}

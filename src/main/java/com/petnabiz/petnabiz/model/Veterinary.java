@@ -30,10 +30,10 @@ public class Veterinary {
     @JoinColumn(name = "clinic_id")
     private Clinic clinic;
 
-    @OneToMany(mappedBy = "veterinary")
+    @OneToMany(mappedBy = "veterinary", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Appointment> appointments;
 
-    @OneToMany(mappedBy = "veterinary")
+    @OneToMany(mappedBy = "veterinary", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MedicalRecord> medicalRecords;
 
 

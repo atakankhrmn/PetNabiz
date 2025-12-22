@@ -28,7 +28,7 @@ public class PetOwner {
     @Column(nullable = false)
     private String address;
 
-    @OneToMany(mappedBy = "owner")
+    @OneToMany(mappedBy = "owner",cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Pet> pets;
 
     public PetOwner() {}

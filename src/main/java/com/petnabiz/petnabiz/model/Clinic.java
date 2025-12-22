@@ -31,7 +31,7 @@ public class Clinic {
     @Column(nullable = false)
     private String phone;
 
-    @OneToMany(mappedBy = "clinic")
+    @OneToMany(mappedBy = "clinic",cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Veterinary> veterinaries;
 
     public Clinic() {}
