@@ -68,9 +68,9 @@ Note: Frontend and backend are run separately during development.
 https://github.com/serhaydin/PetNabiz
 
 ## Authors
-- Atakan Kahraman – 2022510066
-- Emre Altundal – 2022510092
-- Serhat Aydın – 2023510130
+- Atakan Kahraman – 2022510066 - https://github.com/atakankhrmn
+- Emre Altundal – 2022510092 - https://github.com/emrealtundal
+- Serhat Aydın – 2023510130 - https://github.com/serhaydin
 
 ## Course Information
 CME 3401 – Database Management Systems

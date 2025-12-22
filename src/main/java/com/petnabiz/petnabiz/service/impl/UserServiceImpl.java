@@ -5,8 +5,10 @@ import com.petnabiz.petnabiz.dto.request.user.UserPasswordUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.request.user.UserUpdateRequestDTO;
 import com.petnabiz.petnabiz.dto.response.user.UserResponseDTO;
 import com.petnabiz.petnabiz.mapper.UserMapper;
+import com.petnabiz.petnabiz.model.Admin;
 import com.petnabiz.petnabiz.model.User;
 import com.petnabiz.petnabiz.repository.UserRepository;
+import com.petnabiz.petnabiz.service.AdminService;
 import com.petnabiz.petnabiz.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.security.core.Authentication;
@@ -22,11 +24,17 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final AdminService adminService;
+    private final ClinicServiceImpl clinicService;
+    private final PetOwnerServiceImpl petOwnerServiceImpl;
 
     public UserServiceImpl(UserRepository userRepository,
-                           UserMapper userMapper) {
+                           UserMapper userMapper, AdminService adminService, ClinicServiceImpl clinicService, PetOwnerServiceImpl petOwnerServiceImpl) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.adminService = adminService;
+        this.clinicService = clinicService;
+        this.petOwnerServiceImpl = petOwnerServiceImpl;
     }
 
     private String currentEmail() {
@@ -205,6 +213,15 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(String userId) {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Silinmek istenen user bulunamadı: " + userId));
+        if(user.getRole().equals("ROLE_ADMIN")) {
+            adminService.deleteAdmin(user.getUserId());
+        }
+        else if(user.getRole().equals("ROLE_CLINIC")){
+            clinicService.deleteClinic(user.getUserId());
+        }
+        else if(user.getRole().equals("ROLE_OWNER")){
+            petOwnerServiceImpl.deletePetOwner(user.getUserId());
+        }
         userRepository.delete(user);
     }
 }
