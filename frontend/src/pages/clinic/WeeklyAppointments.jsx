@@ -151,6 +151,11 @@ export default function WeeklyAppointments() {
         }
     };
 
+    const isMedicationActive = (endDate) => {
+        if (!endDate) return true;
+        return new Date(endDate) >= new Date().setHours(0, 0, 0, 0);
+    };
+
     // ✅ Detay sayfasında ID Kopyala
     const copyDetailPetId = () => {
         const id = detailPet?.petId;
